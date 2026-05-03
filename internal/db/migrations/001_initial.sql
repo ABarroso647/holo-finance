@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     plaid_account_id  TEXT UNIQUE NOT NULL,
     name              TEXT NOT NULL,
     official_name     TEXT,
+    display_name      TEXT,
     type              TEXT NOT NULL,
     subtype           TEXT,
     currency          TEXT NOT NULL DEFAULT 'CAD',
@@ -28,7 +29,6 @@ CREATE TABLE IF NOT EXISTS categories (
     id        TEXT PRIMARY KEY,
     name      TEXT NOT NULL,
     parent_id TEXT REFERENCES categories(id),
-    kind      TEXT NOT NULL,
     color     TEXT,
     icon      TEXT
 );
@@ -45,11 +45,25 @@ CREATE TABLE IF NOT EXISTS transactions (
     currency             TEXT NOT NULL DEFAULT 'CAD',
     category_id          TEXT REFERENCES categories(id),
     category_source      TEXT NOT NULL DEFAULT 'uncategorized',
+    category_confidence  TEXT,
     pending              INTEGER NOT NULL DEFAULT 0,
     is_recurring         INTEGER NOT NULL DEFAULT 0,
     notes                TEXT,
     created_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at           DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE,
+    color      TEXT NOT NULL DEFAULT '#64748b',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS transaction_tags (
+    transaction_id TEXT NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+    tag_id         TEXT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (transaction_id, tag_id)
 );
 
 CREATE TABLE IF NOT EXISTS rules (
@@ -96,20 +110,48 @@ CREATE TABLE IF NOT EXISTS card_config (
     cpp_overridden INTEGER NOT NULL DEFAULT 0
 );
 
-CREATE TABLE IF NOT EXISTS cpp_cache (
-    program    TEXT PRIMARY KEY,
-    cpp        REAL NOT NULL,
-    source     TEXT NOT NULL,
-    fetched_at DATETIME NOT NULL
+CREATE TABLE IF NOT EXISTS card_reward_rates (
+    id           TEXT PRIMARY KEY,
+    account_id   TEXT NOT NULL REFERENCES accounts(id),
+    category_id  TEXT REFERENCES categories(id),
+    raw_category TEXT,
+    reward_rate  REAL NOT NULL,
+    cap_amount   REAL,
+    cap_period   TEXT,
+    notes        TEXT,
+    created_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS card_reward_rates (
-    id          TEXT PRIMARY KEY,
-    account_id  TEXT NOT NULL REFERENCES accounts(id),
-    category_id TEXT REFERENCES categories(id),
-    reward_rate REAL NOT NULL,
-    notes       TEXT,
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS app_settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS securities (
+    id                TEXT PRIMARY KEY,
+    plaid_security_id TEXT UNIQUE NOT NULL,
+    ticker_symbol     TEXT,
+    name              TEXT NOT NULL,
+    type              TEXT,
+    currency          TEXT NOT NULL DEFAULT 'CAD',
+    close_price       REAL,
+    close_price_as_of TEXT,
+    created_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS holdings (
+    id                TEXT PRIMARY KEY,
+    account_id        TEXT NOT NULL REFERENCES accounts(id),
+    security_id       TEXT NOT NULL REFERENCES securities(id),
+    quantity          REAL NOT NULL,
+    cost_basis        REAL,
+    institution_price REAL,
+    institution_value REAL,
+    currency          TEXT NOT NULL DEFAULT 'CAD',
+    updated_at        DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(account_id, security_id)
 );
 
 CREATE TABLE IF NOT EXISTS webauthn_credentials (
@@ -119,20 +161,32 @@ CREATE TABLE IF NOT EXISTS webauthn_credentials (
     sign_count    INTEGER NOT NULL DEFAULT 0,
     created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS cpp_cache (
+    program    TEXT PRIMARY KEY,
+    cpp        REAL NOT NULL,
+    source     TEXT NOT NULL,
+    fetched_at DATETIME NOT NULL
+);
 -- +goose StatementEnd
 
 -- +goose Down
 -- +goose StatementBegin
 DROP TABLE IF EXISTS webauthn_credentials;
+DROP TABLE IF EXISTS holdings;
+DROP TABLE IF EXISTS securities;
+DROP TABLE IF EXISTS app_settings;
 DROP TABLE IF EXISTS card_reward_rates;
-DROP TABLE IF EXISTS cpp_cache;
 DROP TABLE IF EXISTS card_config;
 DROP TABLE IF EXISTS credit_card_liabilities;
 DROP TABLE IF EXISTS webhook_events;
 DROP TABLE IF EXISTS plaid_cursors;
 DROP TABLE IF EXISTS rules;
+DROP TABLE IF EXISTS transaction_tags;
+DROP TABLE IF EXISTS tags;
 DROP TABLE IF EXISTS transactions;
 DROP TABLE IF EXISTS categories;
 DROP TABLE IF EXISTS accounts;
 DROP TABLE IF EXISTS institutions;
+DROP TABLE IF EXISTS cpp_cache;
 -- +goose StatementEnd

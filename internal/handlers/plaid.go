@@ -9,10 +9,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/abarroso647/holo/internal/categorize"
-	"github.com/abarroso647/holo/internal/crypto"
-	db "github.com/abarroso647/holo/internal/db/generated"
-	plaidclient "github.com/abarroso647/holo/internal/plaid"
+	"holo/internal/categorize"
+	"holo/internal/crypto"
+	db "holo/internal/db/generated"
+	plaidclient "holo/internal/plaid"
 	"github.com/google/uuid"
 	plaid "github.com/plaid/plaid-go/v36/plaid"
 )
@@ -157,7 +157,6 @@ func (h *PlaidHandler) Sync(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(results)
 }
 
-// SyncLiabilities fetches credit card liability data for all institutions.
 func (h *PlaidHandler) SyncLiabilities(w http.ResponseWriter, r *http.Request) {
 	institutions, err := h.queries.ListInstitutions(r.Context())
 	if err != nil {
@@ -274,8 +273,7 @@ func (h *PlaidHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// logWebhook inserts a webhook event using a SHA-256 hash of the payload as the ID,
-// so identical retried payloads are silently ignored (INSERT OR IGNORE).
+// deduplicates retried webhooks via SHA-256 hash as ID (INSERT OR IGNORE).
 func logWebhook(ctx context.Context, queries *db.Queries, itemID, webhookType, webhookCode, payload string) error {
 	h := sha256.Sum256([]byte(payload))
 	id := hex.EncodeToString(h[:])

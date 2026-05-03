@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/abarroso647/holo/internal/components"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/components"
+	db "holo/internal/db/generated"
 )
 
 type TransactionHandler struct {

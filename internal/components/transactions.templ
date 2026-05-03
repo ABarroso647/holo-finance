@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 	"math"
-	"github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/db/generated"
 )
 
 templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, accounts []db.Account, allTags []db.Tag, tagMap map[string][]db.Tag, total, page, limit int, filters TxnFilters) {

@@ -3,13 +3,12 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/abarroso647/holo/internal/components"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/components"
+	db "holo/internal/db/generated"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
 
-// List returns all tags as JSON (used by autocomplete).
 func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
 	tags, _ := h.queries.ListTags(r.Context())
 	spendByTag, _ := h.queries.GetSpendByTag(r.Context(), db.GetSpendByTagParams{
@@ -19,7 +18,6 @@ func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
 	components.TagsSettingsSection(tags, spendByTag).Render(r.Context(), w)
 }
 
-// Create creates a new tag globally and returns the updated tags section.
 func (h *TagHandler) Create(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	color := r.FormValue("color")
@@ -46,7 +44,6 @@ func (h *TagHandler) Create(w http.ResponseWriter, r *http.Request) {
 	components.TagsSettingsSection(tags, spendByTag).Render(r.Context(), w)
 }
 
-// Delete deletes a tag and returns the updated tags section.
 func (h *TagHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.queries.DeleteTag(r.Context(), id); err != nil {
@@ -69,7 +66,6 @@ func NewTagHandler(queries *db.Queries) *TagHandler {
 	return &TagHandler{queries: queries}
 }
 
-// POST /api/transactions/{id}/tags — add tag by ID (existing) or name (new), return updated cell
 func (h *TagHandler) Add(w http.ResponseWriter, r *http.Request) {
 	txnID := chi.URLParam(r, "id")
 
@@ -78,7 +74,6 @@ func (h *TagHandler) Add(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case tagID != "":
-		// Existing tag selected from dropdown — add directly
 		if err := h.queries.AddTagToTransaction(r.Context(), db.AddTagToTransactionParams{
 			TransactionID: txnID,
 			TagID:         tagID,
@@ -87,7 +82,7 @@ func (h *TagHandler) Add(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case tagName != "":
-		// Try existing tag first to preserve its color, otherwise create new
+		// preserve existing color if the tag already exists
 		existing, lookupErr := h.queries.GetTagByName(r.Context(), tagName)
 		var tag db.Tag
 		var err error
@@ -111,14 +106,11 @@ func (h *TagHandler) Add(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "add tag failed", http.StatusInternalServerError)
 			return
 		}
-	default:
-		// Nothing submitted — re-render unchanged
 	}
 
 	h.renderTagsCell(w, r, txnID)
 }
 
-// DELETE /api/transactions/{id}/tags/{tag_id} — remove tag, return updated tags cell HTML
 func (h *TagHandler) Remove(w http.ResponseWriter, r *http.Request) {
 	txnID := chi.URLParam(r, "id")
 	tagID := chi.URLParam(r, "tag_id")

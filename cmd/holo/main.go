@@ -7,14 +7,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/abarroso647/holo/internal/auth"
-	"github.com/abarroso647/holo/internal/categorize"
-	"github.com/abarroso647/holo/internal/crypto"
-	"github.com/abarroso647/holo/internal/db"
-	dbgen "github.com/abarroso647/holo/internal/db/generated"
-	"github.com/abarroso647/holo/internal/handlers"
-	plaidclient "github.com/abarroso647/holo/internal/plaid"
-	holoStatic "github.com/abarroso647/holo/static"
+	"holo/internal/auth"
+	"holo/internal/categorize"
+	"holo/internal/crypto"
+	"holo/internal/db"
+	dbgen "holo/internal/db/generated"
+	"holo/internal/handlers"
+	plaidclient "holo/internal/plaid"
+	holoStatic "holo/static"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/gorilla/sessions"
@@ -44,7 +44,6 @@ func main() {
 		log.Fatalf("seed categories: %v", err)
 	}
 
-	// Session store — SESSION_SECRET must be set in production
 	secret := os.Getenv("SESSION_SECRET")
 	if secret == "" {
 		secret = "dev-secret-change-in-production"
@@ -52,7 +51,6 @@ func main() {
 	}
 	store := sessions.NewCookieStore([]byte(secret))
 
-	// WebAuthn auth handler
 	authHandler, err := auth.New(queries, store)
 	if err != nil {
 		log.Fatalf("auth init: %v", err)
@@ -67,10 +65,8 @@ func main() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	// Static assets (embedded in binary)
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(holoStatic.FS))))
 
-	// Auth routes (public — no session check)
 	r.Get("/auth/register", authHandler.RegisterPage)
 	r.Post("/auth/register/begin", authHandler.BeginRegistration)
 	r.Post("/auth/register/finish", authHandler.FinishRegistration)
@@ -79,11 +75,9 @@ func main() {
 	r.Post("/auth/login/finish", authHandler.FinishLogin)
 	r.Post("/auth/logout", authHandler.Logout)
 
-	// All other routes require authentication
 	r.Group(func(r chi.Router) {
 		r.Use(auth.RequireAuth(store))
 
-		// Pages
 		dashHandler := handlers.NewDashboardHandler(queries)
 		r.Get("/", dashHandler.Page)
 
@@ -113,20 +107,17 @@ func main() {
 		txnHandler := handlers.NewTransactionHandler(queries)
 		r.Get("/transactions", txnHandler.List)
 
-		// Categorize routes
 		catHandler := handlers.NewCategorizeHandler(queries)
 		r.Post("/api/categorize/run", catHandler.Run)
 		r.Post("/api/transactions/{id}/category", catHandler.UpdateCategory)
 		r.Post("/api/rules", catHandler.CreateRule)
 
-		// Tag routes
 		tagHandler := handlers.NewTagHandler(queries)
 		r.Post("/api/transactions/{id}/tags", tagHandler.Add)
 		r.Delete("/api/transactions/{id}/tags/{tag_id}", tagHandler.Remove)
 		r.Post("/api/tags", tagHandler.Create)
 		r.Delete("/api/tags/{id}", tagHandler.Delete)
 
-		// Settings routes
 		settingsHandler := handlers.NewSettingsHandler(queries)
 		r.Get("/settings", settingsHandler.Page)
 		r.Post("/api/accounts/{id}/display-name", settingsHandler.UpdateDisplayName)
@@ -134,7 +125,6 @@ func main() {
 		r.Post("/api/settings/openrouter-model", settingsHandler.UpdateModel)
 		r.Delete("/api/rules/{id}", settingsHandler.DeleteRule)
 
-		// Plaid API routes
 		if api != nil {
 			plaidHandler := handlers.NewPlaidHandler(api, queries)
 			r.Post("/api/plaid/link-token", plaidHandler.LinkToken)

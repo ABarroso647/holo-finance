@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/db/generated"
 )
 
 // ApplyRules runs all rules against uncategorized transactions.

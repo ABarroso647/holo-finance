@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/abarroso647/holo/internal/components"
+	"holo/internal/components"
 )
 
 func ConnectPage(w http.ResponseWriter, r *http.Request) {

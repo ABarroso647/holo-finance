@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/abarroso647/holo/internal/categorize"
-	"github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/categorize"
+	"holo/internal/db/generated"
 	"github.com/google/uuid"
 	plaid "github.com/plaid/plaid-go/v36/plaid"
 )

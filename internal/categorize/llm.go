@@ -10,7 +10,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/db/generated"
 )
 
 const batchSize = 80
@@ -46,7 +46,6 @@ type categorizeResult struct {
 	} `json:"results"`
 }
 
-// RunLLMCategorization sends uncategorized transactions to OpenRouter in batches.
 // Only merchant names are sent — no amounts, dates, or account info.
 func RunLLMCategorization(ctx context.Context, queries *db.Queries) (int, error) {
 	txns, err := queries.ListUncategorizedTransactions(ctx)
@@ -132,7 +131,7 @@ Use the exact category name from the list. If unsure, use "Other".`, categoryLis
 	}
 	httpReq.Header.Set("Authorization", "Bearer "+apiKey)
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("HTTP-Referer", "https://github.com/abarroso647/holo")
+	httpReq.Header.Set("HTTP-Referer", "https://holo")
 
 	resp, err := http.DefaultClient.Do(httpReq)
 	if err != nil {
@@ -158,13 +157,11 @@ Use the exact category name from the list. If unsure, use "Other".`, categoryLis
 		return 0, fmt.Errorf("parse llm json: %w", err)
 	}
 
-	// Build category name → ID map
 	catMap := make(map[string]string)
 	for _, c := range categoryNames {
 		catMap[strings.ToLower(c)] = c
 	}
 
-	// We need category IDs — fetch them
 	allCats, err := queries.ListCategories(ctx)
 	if err != nil {
 		return 0, err

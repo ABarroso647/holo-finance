@@ -7,7 +7,7 @@ import (
 	"hash/fnv"
 	"strings"
 
-	"github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/db/generated"
 )
 
 // DefaultCategories are seeded on startup for manual/rule/LLM categorization.

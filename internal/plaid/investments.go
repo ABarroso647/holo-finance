@@ -4,13 +4,11 @@ import (
 	"context"
 	"fmt"
 
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 	"github.com/google/uuid"
 	plaid "github.com/plaid/plaid-go/v36/plaid"
 )
 
-// SyncInvestments fetches holdings and securities for all accounts under a given access token
-// and upserts them into the local DB.
 func SyncInvestments(ctx context.Context, api *plaid.APIClient, queries *db.Queries, accessToken string) (int, error) {
 	req := plaid.NewInvestmentsHoldingsGetRequest(accessToken)
 	resp, _, err := api.PlaidApi.InvestmentsHoldingsGet(ctx).InvestmentsHoldingsGetRequest(*req).Execute()
@@ -18,7 +16,6 @@ func SyncInvestments(ctx context.Context, api *plaid.APIClient, queries *db.Quer
 		return 0, fmt.Errorf("investments holdings get: %w", err)
 	}
 
-	// Build plaid_security_id → internal security ID map
 	securityIDMap := make(map[string]string, len(resp.GetSecurities()))
 
 	for _, s := range resp.GetSecurities() {
@@ -27,7 +24,6 @@ func SyncInvestments(ctx context.Context, api *plaid.APIClient, queries *db.Quer
 			continue
 		}
 
-		// Reuse existing ID if present, otherwise create one
 		existing, err := queries.GetSecurityByPlaidID(ctx, plaidSecID)
 		var secID string
 		if err == nil {
@@ -68,7 +64,6 @@ func SyncInvestments(ctx context.Context, api *plaid.APIClient, queries *db.Quer
 
 		acct, err := queries.GetAccountByPlaidID(ctx, plaidAccID)
 		if err != nil {
-			// Account not yet synced — skip this holding
 			continue
 		}
 

@@ -1,4 +1,4 @@
-module github.com/abarroso647/holo
+module holo
 
 go 1.25.7
 

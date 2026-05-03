@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 type ExportHandler struct {

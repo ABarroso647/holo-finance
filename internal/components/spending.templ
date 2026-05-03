@@ -2,7 +2,7 @@ package components
 
 import (
 	"fmt"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 type MonthlyTotal struct {
@@ -144,7 +144,6 @@ templ SpendingPage(from, to string, cats []db.GetSpendingByCategoryRow, monthly 
 											+ '<td style="text-align:right;color:'+netColor+';font-variant-numeric:tabular-nums">' + netSign + fmt(net) + '</td>'
 											+ '</tr>';
 									});
-									// totals row
 									const totalIncome = income.reduce((a,b)=>a+b,0);
 									const totalSpend = spending.reduce((a,b)=>a+b,0);
 									const totalNet = totalIncome - totalSpend;
@@ -158,7 +157,6 @@ templ SpendingPage(from, to string, cats []db.GetSpendingByCategoryRow, monthly 
 									document.getElementById('summary-rows').innerHTML = rows.join('');
 								}
 
-								// initial render from overview data
 								renderTable(d.labels, d.income, d.spending);
 
 								const trendChart = new Chart(document.getElementById('trend-chart'), {
@@ -171,9 +169,7 @@ templ SpendingPage(from, to string, cats []db.GetSpendingByCategoryRow, monthly 
 												position: 'bottom',
 												labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } },
 												onClick: function(e, legendItem, legend) {
-													// default toggle behaviour
 													Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
-													// recompute spending per month from visible datasets
 													const chart = legend.chart;
 													const spending = new Array(td.labels.length).fill(0);
 													chart.data.datasets.forEach((ds, i) => {
@@ -196,7 +192,6 @@ templ SpendingPage(from, to string, cats []db.GetSpendingByCategoryRow, monthly 
 										const tab = this.dataset.tab;
 										document.getElementById('tab-overview').style.display = tab === 'overview' ? 'block' : 'none';
 										document.getElementById('tab-category').style.display = tab === 'category' ? 'block' : 'none';
-										// reset table to match whichever tab is active
 										if (tab === 'overview') {
 											renderTable(d.labels, d.income, d.spending);
 										} else {

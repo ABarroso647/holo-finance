@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/abarroso647/holo/internal/components"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/components"
+	db "holo/internal/db/generated"
 	"github.com/go-chi/chi/v5"
 )
 
@@ -30,7 +30,6 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 		model = os.Getenv("OPENROUTER_MODEL")
 	}
 
-	// Build card rates data for credit accounts
 	var cardRates []components.CardRatesData
 	for _, a := range accounts {
 		if a.Type != "credit" {

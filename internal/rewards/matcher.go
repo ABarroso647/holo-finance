@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 // synonyms maps normalized raw keywords (from card issuer descriptions) to
@@ -63,7 +63,6 @@ var synonyms = map[string][]string{
 	"preauthorized": {"bill", "subscription"},
 }
 
-// normalize lowercases a string and removes non-alphanumeric characters except spaces.
 func normalize(s string) string {
 	s = strings.ToLower(strings.TrimSpace(s))
 	var b strings.Builder
@@ -94,7 +93,6 @@ func MatchCategory(raw string, categories []db.Category) *string {
 	normRaw := normalize(raw)
 	rawWords := strings.Fields(normRaw)
 
-	// Tier 1: substring match
 	var bestT1 *string
 	bestT1Len := 0
 	for _, cat := range categories {
@@ -114,8 +112,6 @@ func MatchCategory(raw string, categories []db.Category) *string {
 		return bestT1
 	}
 
-	// Tier 2: keyword synonyms
-	// Collect candidate category name fragments from all words in raw
 	candidateFrags := map[string]struct{}{}
 	for _, word := range rawWords {
 		if frags, ok := synonyms[word]; ok {
@@ -124,7 +120,6 @@ func MatchCategory(raw string, categories []db.Category) *string {
 			}
 		}
 	}
-	// Also try multi-word phrases (up to 3 consecutive words)
 	for i := 0; i < len(rawWords); i++ {
 		for j := i + 2; j <= len(rawWords) && j <= i+3; j++ {
 			phrase := strings.Join(rawWords[i:j], " ")

@@ -73,7 +73,7 @@ Include an "everything else" catch-all entry. Return ONLY the JSON array.`, card
 	}
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("HTTP-Referer", "https://github.com/abarroso647/holo")
+	req.Header.Set("HTTP-Referer", "https://holo")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

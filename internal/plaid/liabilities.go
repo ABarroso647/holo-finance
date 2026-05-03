@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 	plaid "github.com/plaid/plaid-go/v36/plaid"
 )
 

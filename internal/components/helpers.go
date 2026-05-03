@@ -6,7 +6,7 @@ import (
 	"net/url"
 	"time"
 
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 func parseYYYYMM(dateStr string) time.Time {

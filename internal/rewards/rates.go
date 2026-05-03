@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 	"github.com/google/uuid"
 )
 

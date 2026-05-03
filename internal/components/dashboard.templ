@@ -3,7 +3,7 @@ package components
 import (
 	"fmt"
 	"math"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 templ DashboardPage(netWorth float64, spending float64, income float64, catsJSON string, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {

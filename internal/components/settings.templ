@@ -2,7 +2,7 @@ package components
 
 import (
 	"fmt"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 type CardRatesData struct {
@@ -337,8 +337,6 @@ templ settingsCardRates(cards []CardRatesData, categories []db.Category) {
 	</div>
 }
 
-// SettingsCardRatesContent renders the rates table + manual add form.
-// HTMX swap target for fetch-rates, add-rate, and delete-rate from settings.
 templ SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesForAccountRow, categories []db.Category) {
 	<div id={ fmt.Sprintf("settings-rates-%s", accountID) }>
 		if len(rates) > 0 {

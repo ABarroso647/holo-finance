@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/abarroso647/holo/internal/components"
-	db "github.com/abarroso647/holo/internal/db/generated"
-	"github.com/abarroso647/holo/internal/rewards"
+	"holo/internal/components"
+	db "holo/internal/db/generated"
+	"holo/internal/rewards"
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
@@ -40,12 +40,10 @@ func (h *CardsHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 		card := components.CardSummary{Account: acct}
 
-		// Liability data — nil if not yet synced
 		if liab, err := h.queries.GetCreditCardLiability(ctx, acct.ID); err == nil {
 			card.Liability = &liab
 		}
 
-		// Spend since statement close, or last 30 days as fallback
 		spendSince := since30
 		spendLabel := "last 30 days"
 		if card.Liability != nil && card.Liability.LastStatementIssueDate != nil {
@@ -58,13 +56,11 @@ func (h *CardsHandler) Page(w http.ResponseWriter, r *http.Request) {
 			Date:      spendSince,
 		})
 
-		// Top categories for the same period
 		card.TopCats, _ = h.queries.GetTopCategoriesForAccount(ctx, db.GetTopCategoriesForAccountParams{
 			AccountID: acct.ID,
 			Date:      spendSince,
 		})
 
-		// Configured reward rates
 		card.Rates, _ = h.queries.ListCardRewardRatesForAccount(ctx, acct.ID)
 
 		cards = append(cards, card)
@@ -73,8 +69,6 @@ func (h *CardsHandler) Page(w http.ResponseWriter, r *http.Request) {
 	components.CardsPage(cards).Render(ctx, w)
 }
 
-// FetchRates fetches reward rates for a card via Gemini and returns the updated rates HTML fragment.
-// Supports view=settings (settings page context) or default (cards page context).
 func (h *CardsHandler) FetchRates(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	cardName := r.FormValue("card_name")
@@ -105,7 +99,6 @@ func (h *CardsHandler) FetchRates(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// AddRate manually adds a reward rate for a card and returns the updated rates section.
 func (h *CardsHandler) AddRate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	view := r.FormValue("view")
@@ -167,7 +160,6 @@ func (h *CardsHandler) AddRate(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DeleteRate removes a reward rate and returns the updated rates section.
 func (h *CardsHandler) DeleteRate(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	rateID := chi.URLParam(r, "rate_id")
