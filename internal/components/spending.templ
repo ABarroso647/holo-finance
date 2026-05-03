@@ -1,0 +1,251 @@
+package components
+
+import (
+	"fmt"
+	db "github.com/abarroso647/holo/internal/db/generated"
+)
+
+type MonthlyTotal struct {
+	Month    string
+	Spending float64
+	Income   float64
+}
+
+templ SpendingPage(from, to string, cats []db.GetSpendingByCategoryRow, monthly []MonthlyTotal, categoriesJSON string, monthlyJSON string, trendJSON string) {
+	@Layout("Spending") {
+		<style>
+			.spending-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+			@media (max-width: 768px) { .spending-grid { grid-template-columns: 1fr; } }
+		</style>
+		<div class="page-header">
+			<h1>Spending</h1>
+			<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">
+				for _, r := range spendingRanges() {
+					<a href={ templ.SafeURL(r.URL) } class="btn btn-ghost" style="font-size:0.75rem;padding:0.2rem 0.6rem">{ r.Label }</a>
+				}
+				<span style="color:var(--border);padding:0 0.1rem">|</span>
+				<a href={ templ.SafeURL(prevMonthURL(from)) } class="btn btn-ghost" style="font-size:0.75rem;padding:0.2rem 0.5rem">←</a>
+				<span style="color:var(--muted);font-size:0.8rem;white-space:nowrap">{ from } – { to }</span>
+				<a href={ templ.SafeURL(nextMonthURL(from)) } class="btn btn-ghost" style="font-size:0.75rem;padding:0.2rem 0.5rem">→</a>
+			</div>
+		</div>
+		<div class="spending-grid" style="margin-bottom:1.5rem">
+			<div class="card">
+				<h2>Spending by Category</h2>
+				if len(cats) == 0 {
+					<p style="color:var(--muted);padding:1rem 0">No spending data for this period.</p>
+				} else {
+					<div id="category-data" hidden data-json={ categoriesJSON }></div>
+					<div style="position:relative;height:250px;margin-bottom:1rem">
+						<canvas id="category-chart"></canvas>
+					</div>
+					<script>
+						(function() {
+							try {
+								if (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+								const el = document.getElementById('category-data');
+								if (!el) throw new Error('category-data element not found');
+								const data = JSON.parse(el.dataset.json);
+								new Chart(document.getElementById('category-chart'), {
+									type: 'doughnut',
+									data: { labels: data.labels, datasets: [{ data: data.values, backgroundColor: data.colors, borderWidth: 0 }] },
+									options: { plugins: { legend: { display: false } }, maintainAspectRatio: false }
+								});
+							} catch(e) {
+								document.getElementById('category-chart').insertAdjacentHTML('afterend', '<p style="color:#ef4444;font-size:0.75rem">Chart error: '+e.message+'</p>');
+							}
+						})();
+					</script>
+					{{ total := categoryTotal(cats) }}
+					<div style="display:flex;flex-direction:column;gap:0.4rem">
+						for _, cat := range cats {
+							<div style="display:flex;align-items:center;gap:0.5rem">
+								<span style={ fmt.Sprintf("width:10px;height:10px;border-radius:50%%;background:%s;flex-shrink:0", cat.CategoryColor) }></span>
+								<span style="flex:1;font-size:0.875rem">{ cat.CategoryName }</span>
+								<span style="font-variant-numeric:tabular-nums;font-size:0.875rem">{ fmt.Sprintf("$%.2f", cat.Total) }</span>
+								<span style="color:var(--muted);font-size:0.75rem;width:3.5rem;text-align:right">{ fmt.Sprintf("%.1f%%", catPct(cat.Total, total)) }</span>
+							</div>
+						}
+					</div>
+				}
+			</div>
+			<div class="card">
+				<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+					<h2 style="margin-bottom:0">Monthly Trend</h2>
+					<div style="display:flex;gap:0.25rem">
+						<button class="btn btn-ghost trend-tab active-tab" style="font-size:0.75rem;padding:0.2rem 0.6rem" data-tab="overview">Overview</button>
+						<button class="btn btn-ghost trend-tab" style="font-size:0.75rem;padding:0.2rem 0.6rem" data-tab="category">By Category</button>
+					</div>
+				</div>
+				if len(monthly) == 0 {
+					<p style="color:var(--muted);padding:1rem 0">No data yet.</p>
+				} else {
+					<div id="monthly-data" hidden data-json={ monthlyJSON }></div>
+					<div id="trend-data" hidden data-json={ trendJSON }></div>
+					<div id="tab-overview" style="position:relative;height:300px">
+						<canvas id="monthly-chart"></canvas>
+					</div>
+					<div id="tab-category" style="position:relative;height:300px;display:none">
+						<canvas id="trend-chart"></canvas>
+					</div>
+					<div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border);max-height:200px;overflow-y:auto">
+						<table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+							<thead>
+								<tr style="position:sticky;top:0;background:var(--surface)">
+									<th style="text-align:left;padding:0.25rem 0.5rem;color:var(--muted);font-weight:500">Month</th>
+									<th style="text-align:right;padding:0.25rem 0.5rem;color:var(--muted);font-weight:500">Income</th>
+									<th style="text-align:right;padding:0.25rem 0.5rem;color:var(--muted);font-weight:500">Spending</th>
+									<th style="text-align:right;padding:0.25rem 0.5rem;color:var(--muted);font-weight:500">Net</th>
+								</tr>
+							</thead>
+							<tbody id="summary-rows"></tbody>
+						</table>
+					</div>
+					<script>
+						(function() {
+							try {
+								if (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+
+								const d = JSON.parse(document.getElementById('monthly-data').dataset.json);
+								const td = JSON.parse(document.getElementById('trend-data').dataset.json);
+
+								const baseScales = {
+									x: { stacked: true, ticks: { color: '#64748b' }, grid: { color: '#2a2d3a' } },
+									y: { stacked: true, ticks: { color: '#64748b', callback: v => '$'+v.toLocaleString() }, grid: { color: '#2a2d3a' } }
+								};
+
+								new Chart(document.getElementById('monthly-chart'), {
+									type: 'bar',
+									data: {
+										labels: d.labels,
+										datasets: [
+											{ label: 'Spending', data: d.spending, backgroundColor: '#ef4444' },
+											{ label: 'Income', data: d.income, backgroundColor: '#22c55e' }
+										]
+									},
+									options: {
+										maintainAspectRatio: false,
+										plugins: { legend: { labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } } } },
+										scales: baseScales
+									}
+								});
+
+								function fmt(v) { return '$' + Math.abs(v).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+
+								function renderTable(labels, income, spending) {
+									const rows = labels.map((label, i) => {
+										const net = income[i] - spending[i];
+										const netColor = net >= 0 ? '#22c55e' : '#ef4444';
+										const netSign = net >= 0 ? '+' : '-';
+										return '<tr>'
+											+ '<td style="color:#64748b;white-space:nowrap">' + label + '</td>'
+											+ '<td style="text-align:right;color:#22c55e;font-variant-numeric:tabular-nums">' + fmt(income[i]) + '</td>'
+											+ '<td style="text-align:right;font-variant-numeric:tabular-nums">' + fmt(spending[i]) + '</td>'
+											+ '<td style="text-align:right;color:'+netColor+';font-variant-numeric:tabular-nums">' + netSign + fmt(net) + '</td>'
+											+ '</tr>';
+									});
+									// totals row
+									const totalIncome = income.reduce((a,b)=>a+b,0);
+									const totalSpend = spending.reduce((a,b)=>a+b,0);
+									const totalNet = totalIncome - totalSpend;
+									const totalNetColor = totalNet >= 0 ? '#22c55e' : '#ef4444';
+									rows.push('<tr style="border-top:1px solid #2a2d3a;font-weight:600">'
+										+ '<td style="color:#e2e8f0">Total</td>'
+										+ '<td style="text-align:right;color:#22c55e;font-variant-numeric:tabular-nums">' + fmt(totalIncome) + '</td>'
+										+ '<td style="text-align:right;font-variant-numeric:tabular-nums">' + fmt(totalSpend) + '</td>'
+										+ '<td style="text-align:right;color:'+totalNetColor+';font-variant-numeric:tabular-nums">' + (totalNet>=0?'+':'-') + fmt(totalNet) + '</td>'
+										+ '</tr>');
+									document.getElementById('summary-rows').innerHTML = rows.join('');
+								}
+
+								// initial render from overview data
+								renderTable(d.labels, d.income, d.spending);
+
+								const trendChart = new Chart(document.getElementById('trend-chart'), {
+									type: 'bar',
+									data: { labels: td.labels, datasets: td.datasets },
+									options: {
+										maintainAspectRatio: false,
+										plugins: {
+											legend: {
+												position: 'bottom',
+												labels: { color: '#e2e8f0', boxWidth: 12, font: { size: 11 } },
+												onClick: function(e, legendItem, legend) {
+													// default toggle behaviour
+													Chart.defaults.plugins.legend.onClick.call(this, e, legendItem, legend);
+													// recompute spending per month from visible datasets
+													const chart = legend.chart;
+													const spending = new Array(td.labels.length).fill(0);
+													chart.data.datasets.forEach((ds, i) => {
+														if (!chart.getDatasetMeta(i).hidden) {
+															ds.data.forEach((v, j) => { spending[j] += (v || 0); });
+														}
+													});
+													renderTable(td.labels, d.income, spending);
+												}
+											}
+										},
+										scales: baseScales
+									}
+								});
+
+								document.querySelectorAll('.trend-tab').forEach(btn => {
+									btn.addEventListener('click', function() {
+										document.querySelectorAll('.trend-tab').forEach(b => b.classList.remove('active-tab'));
+										this.classList.add('active-tab');
+										const tab = this.dataset.tab;
+										document.getElementById('tab-overview').style.display = tab === 'overview' ? 'block' : 'none';
+										document.getElementById('tab-category').style.display = tab === 'category' ? 'block' : 'none';
+										// reset table to match whichever tab is active
+										if (tab === 'overview') {
+											renderTable(d.labels, d.income, d.spending);
+										} else {
+											const spending = new Array(td.labels.length).fill(0);
+											trendChart.data.datasets.forEach((ds, i) => {
+												if (!trendChart.getDatasetMeta(i).hidden) {
+													ds.data.forEach((v, j) => { spending[j] += (v || 0); });
+												}
+											});
+											renderTable(td.labels, d.income, spending);
+										}
+									});
+								});
+
+							} catch(e) {
+								document.querySelector('#tab-overview canvas').insertAdjacentHTML('afterend', '<p style="color:#ef4444;font-size:0.75rem">Chart error: '+e.message+'</p>');
+							}
+						})();
+					</script>
+				}
+			</div>
+		</div>
+	}
+}
+
+
+func categoryTotal(cats []db.GetSpendingByCategoryRow) float64 {
+	var t float64
+	for _, c := range cats {
+		t += c.Total
+	}
+	return t
+}
+
+func catPct(amount, total float64) float64 {
+	if total == 0 {
+		return 0
+	}
+	return (amount / total) * 100
+}
+
+func prevMonthURL(from string) string {
+	t := parseYYYYMM(from)
+	prev := t.AddDate(0, -1, 0)
+	return fmt.Sprintf("/spending?from=%s&to=%s", prev.Format("2006-01-02"), lastDayOf(prev).Format("2006-01-02"))
+}
+
+func nextMonthURL(from string) string {
+	t := parseYYYYMM(from)
+	next := t.AddDate(0, 1, 0)
+	return fmt.Sprintf("/spending?from=%s&to=%s", next.Format("2006-01-02"), lastDayOf(next).Format("2006-01-02"))
+}

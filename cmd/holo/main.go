@@ -1,0 +1,190 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+
+	"github.com/abarroso647/holo/internal/auth"
+	"github.com/abarroso647/holo/internal/categorize"
+	"github.com/abarroso647/holo/internal/crypto"
+	"github.com/abarroso647/holo/internal/db"
+	dbgen "github.com/abarroso647/holo/internal/db/generated"
+	"github.com/abarroso647/holo/internal/handlers"
+	plaidclient "github.com/abarroso647/holo/internal/plaid"
+	holoStatic "github.com/abarroso647/holo/static"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/gorilla/sessions"
+	"github.com/joho/godotenv"
+)
+
+func main() {
+	_ = godotenv.Load()
+
+	dbPath := os.Getenv("DB_PATH")
+	if dbPath == "" {
+		dbPath = "./holo.db"
+	}
+
+	database, err := db.Open(dbPath)
+	if err != nil {
+		log.Fatalf("open db: %v", err)
+	}
+	defer database.Close()
+
+	queries := dbgen.New(database)
+
+	// Re-encrypt any plaintext Plaid access tokens written before encryption was added.
+	reencryptTokens(context.Background(), queries)
+
+	if err := categorize.SeedCategories(context.Background(), queries); err != nil {
+		log.Fatalf("seed categories: %v", err)
+	}
+
+	// Session store — SESSION_SECRET must be set in production
+	secret := os.Getenv("SESSION_SECRET")
+	if secret == "" {
+		secret = "dev-secret-change-in-production"
+		log.Printf("WARNING: SESSION_SECRET not set — using insecure default")
+	}
+	store := sessions.NewCookieStore([]byte(secret))
+
+	// WebAuthn auth handler
+	authHandler, err := auth.New(queries, store)
+	if err != nil {
+		log.Fatalf("auth init: %v", err)
+	}
+
+	api, err := plaidclient.New()
+	if err != nil {
+		log.Printf("warning: plaid not configured: %v", err)
+	}
+
+	r := chi.NewRouter()
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+
+	// Static assets (embedded in binary)
+	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(holoStatic.FS))))
+
+	// Auth routes (public — no session check)
+	r.Get("/auth/register", authHandler.RegisterPage)
+	r.Post("/auth/register/begin", authHandler.BeginRegistration)
+	r.Post("/auth/register/finish", authHandler.FinishRegistration)
+	r.Get("/auth/login", authHandler.LoginPage)
+	r.Post("/auth/login/begin", authHandler.BeginLogin)
+	r.Post("/auth/login/finish", authHandler.FinishLogin)
+	r.Post("/auth/logout", authHandler.Logout)
+
+	// All other routes require authentication
+	r.Group(func(r chi.Router) {
+		r.Use(auth.RequireAuth(store))
+
+		// Pages
+		dashHandler := handlers.NewDashboardHandler(queries)
+		r.Get("/", dashHandler.Page)
+
+		acctHandler := handlers.NewAccountsHandler(queries)
+		r.Get("/accounts", acctHandler.Page)
+		r.Get("/api/accounts/{id}/detail", acctHandler.Detail)
+
+		spendHandler := handlers.NewSpendingHandler(queries)
+		r.Get("/spending", spendHandler.Page)
+
+		r.Get("/connect", handlers.ConnectPage)
+
+		cardsHandler := handlers.NewCardsHandler(queries)
+		r.Get("/cards", cardsHandler.Page)
+		r.Post("/api/cards/{id}/fetch-rates", cardsHandler.FetchRates)
+		r.Post("/api/cards/{id}/rates", cardsHandler.AddRate)
+		r.Delete("/api/cards/{id}/rates/{rate_id}", cardsHandler.DeleteRate)
+		r.Post("/api/cards/rematch-rates", cardsHandler.RematchRates)
+
+		investHandler := handlers.NewInvestHandler(queries)
+		r.Get("/invest", investHandler.Page)
+		r.Post("/api/invest/buffer", investHandler.UpdateBuffer)
+
+		exportHandler := handlers.NewExportHandler(queries)
+		r.Get("/api/export", exportHandler.Export)
+
+		txnHandler := handlers.NewTransactionHandler(queries)
+		r.Get("/transactions", txnHandler.List)
+
+		// Categorize routes
+		catHandler := handlers.NewCategorizeHandler(queries)
+		r.Post("/api/categorize/run", catHandler.Run)
+		r.Post("/api/transactions/{id}/category", catHandler.UpdateCategory)
+		r.Post("/api/rules", catHandler.CreateRule)
+
+		// Tag routes
+		tagHandler := handlers.NewTagHandler(queries)
+		r.Post("/api/transactions/{id}/tags", tagHandler.Add)
+		r.Delete("/api/transactions/{id}/tags/{tag_id}", tagHandler.Remove)
+		r.Post("/api/tags", tagHandler.Create)
+		r.Delete("/api/tags/{id}", tagHandler.Delete)
+
+		// Settings routes
+		settingsHandler := handlers.NewSettingsHandler(queries)
+		r.Get("/settings", settingsHandler.Page)
+		r.Post("/api/accounts/{id}/display-name", settingsHandler.UpdateDisplayName)
+		r.Post("/api/categories/{id}", settingsHandler.UpdateCategory)
+		r.Post("/api/settings/openrouter-model", settingsHandler.UpdateModel)
+		r.Delete("/api/rules/{id}", settingsHandler.DeleteRule)
+
+		// Plaid API routes
+		if api != nil {
+			plaidHandler := handlers.NewPlaidHandler(api, queries)
+			r.Post("/api/plaid/link-token", plaidHandler.LinkToken)
+			r.Post("/api/plaid/exchange-token", plaidHandler.ExchangeToken)
+			r.Post("/api/plaid/sync", plaidHandler.Sync)
+			r.Post("/api/plaid/sync-liabilities", plaidHandler.SyncLiabilities)
+			r.Post("/api/plaid/sync-investments", plaidHandler.SyncInvestments)
+			r.Post("/api/plaid/webhook", plaidHandler.Webhook)
+		}
+	})
+
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Printf("starting holo on :%s", port)
+	if err := http.ListenAndServe(":"+port, r); err != nil {
+		log.Fatalf("server: %v", err)
+	}
+}
+
+// reencryptTokens upgrades any plaintext Plaid access tokens stored before encryption was added.
+func reencryptTokens(ctx context.Context, queries *dbgen.Queries) {
+	encKey := crypto.KeyFromEnv()
+	institutions, err := queries.ListInstitutions(ctx)
+	if err != nil {
+		log.Printf("reencrypt: list institutions: %v", err)
+		return
+	}
+	upgraded := 0
+	for _, inst := range institutions {
+		if strings.HasPrefix(inst.PlaidAccessToken, "enc:v1:") {
+			continue // already encrypted
+		}
+		enc, err := crypto.Encrypt(encKey, inst.PlaidAccessToken)
+		if err != nil {
+			log.Printf("reencrypt: encrypt for %s: %v", inst.Name, err)
+			continue
+		}
+		if err := queries.UpdateInstitutionToken(ctx, dbgen.UpdateInstitutionTokenParams{
+			ID:               inst.ID,
+			PlaidAccessToken: enc,
+		}); err != nil {
+			log.Printf("reencrypt: update for %s: %v", inst.Name, err)
+			continue
+		}
+		upgraded++
+	}
+	if upgraded > 0 {
+		log.Printf("reencrypt: upgraded %d plaintext token(s) to AES-256-GCM", upgraded)
+	}
+}

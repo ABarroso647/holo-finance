@@ -1,0 +1,367 @@
+package components
+
+import (
+	"fmt"
+	"math"
+	"github.com/abarroso647/holo/internal/db/generated"
+)
+
+templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, accounts []db.Account, allTags []db.Tag, tagMap map[string][]db.Tag, total, page, limit int, filters TxnFilters) {
+	@Layout("Transactions") {
+		<div class="page-header">
+			<h1>Transactions</h1>
+			<div style="display:flex;gap:0.5rem;align-items:center">
+				<button
+					class="btn btn-ghost"
+					hx-post="/api/plaid/sync"
+					hx-target="#sync-result"
+					hx-swap="innerHTML"
+					hx-indicator="#sync-spinner"
+					hx-disabled-elt="this"
+				>
+					<span id="sync-spinner" class="htmx-indicator">⟳</span>
+					Sync
+				</button>
+				<button
+					class="btn btn-primary"
+					hx-post="/api/categorize/run"
+					hx-target="#categorize-result"
+					hx-swap="innerHTML"
+					hx-indicator="#cat-spinner"
+					hx-disabled-elt="this"
+				>
+					<span id="cat-spinner" class="htmx-indicator">⟳</span>
+					Categorize
+				</button>
+			</div>
+		</div>
+		<div style="display:flex;gap:1rem;margin-bottom:1rem;font-size:0.8rem">
+			<div id="sync-result"></div>
+			<div id="categorize-result"></div>
+		</div>
+		<form id="txn-filter-form" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;align-items:center">
+			<input
+				id="filter-q"
+				type="text"
+				name="q"
+				value={ filters.Search }
+				placeholder="Search merchant or name…"
+				class="filter-input"
+				style="flex:1;min-width:180px"
+				autocomplete="off"
+				hx-get="/transactions"
+				hx-target="#txn-table-wrap"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="#txn-filter-form"
+				hx-trigger="keyup changed delay:400ms"
+			/>
+			<select
+				name="account_id"
+				class="filter-select"
+				hx-get="/transactions"
+				hx-target="#txn-table-wrap"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="#txn-filter-form"
+				hx-trigger="change"
+			>
+				<option value="">All accounts</option>
+				for _, a := range accounts {
+					if filters.AccountID == a.ID {
+						<option value={ a.ID } selected>{ a.Name }</option>
+					} else {
+						<option value={ a.ID }>{ a.Name }</option>
+					}
+				}
+			</select>
+			<select
+				name="category_id"
+				class="filter-select"
+				hx-get="/transactions"
+				hx-target="#txn-table-wrap"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="#txn-filter-form"
+				hx-trigger="change"
+			>
+				<option value="">All categories</option>
+				for _, c := range categories {
+					if filters.CategoryID == c.ID {
+						<option value={ c.ID } selected>{ c.Name }</option>
+					} else {
+						<option value={ c.ID }>{ c.Name }</option>
+					}
+				}
+			</select>
+			<select
+				name="tag_id"
+				class="filter-select"
+				hx-get="/transactions"
+				hx-target="#txn-table-wrap"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="#txn-filter-form"
+				hx-trigger="change"
+			>
+				<option value="">All tags</option>
+				for _, t := range allTags {
+					if filters.TagID == t.ID {
+						<option value={ t.ID } selected>{ t.Name }</option>
+					} else {
+						<option value={ t.ID }>{ t.Name }</option>
+					}
+				}
+			</select>
+			<input
+				type="date"
+				name="date_from"
+				value={ filters.DateFrom }
+				class="filter-input"
+				style="width:140px"
+				hx-get="/transactions"
+				hx-target="#txn-table-wrap"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="#txn-filter-form"
+				hx-trigger="change"
+			/>
+			<span style="color:var(--muted);font-size:0.8rem">–</span>
+			<input
+				type="date"
+				name="date_to"
+				value={ filters.DateTo }
+				class="filter-input"
+				style="width:140px"
+				hx-get="/transactions"
+				hx-target="#txn-table-wrap"
+				hx-swap="innerHTML"
+				hx-push-url="true"
+				hx-include="#txn-filter-form"
+				hx-trigger="change"
+			/>
+			<label style="display:flex;align-items:center;gap:0.35rem;font-size:0.82rem;color:var(--muted);cursor:pointer;white-space:nowrap">
+				<input
+					type="checkbox"
+					name="recurring"
+					value="1"
+					if filters.Recurring == "1" {
+						checked
+					}
+					style="accent-color:var(--accent)"
+					hx-get="/transactions"
+					hx-target="#txn-table-wrap"
+					hx-swap="innerHTML"
+					hx-push-url="true"
+					hx-include="#txn-filter-form"
+					hx-trigger="change"
+				/>
+				Recurring only
+			</label>
+			if filters.IsActive() {
+				<a
+					href="/transactions"
+					class="btn btn-ghost"
+					style="font-size:0.8rem;padding:0.3rem 0.6rem;color:var(--muted)"
+				>✕ clear</a>
+			}
+		</form>
+		<div
+			id="txn-table-wrap"
+			hx-get="/transactions"
+			hx-trigger="txnTableRefresh from:body"
+			hx-target="#txn-table-wrap"
+			hx-swap="innerHTML"
+			hx-include="#txn-filter-form"
+		>
+			@TxnTableContent(txns, categories, tagMap, allTags, total, page, limit, filters)
+		</div>
+	}
+}
+
+templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, tagMap map[string][]db.Tag, allTags []db.Tag, total, page, limit int, filters TxnFilters) {
+	<div class="card" style="padding:0">
+		if len(txns) == 0 {
+			<p style="color:var(--muted);padding:2rem;text-align:center">No transactions found.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th style="width:5.5rem">Date</th>
+						<th>Merchant</th>
+						<th>Account</th>
+						<th>Category</th>
+						<th style="text-align:right">Amount</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, group := range groupByDate(txns) {
+						<tr class="date-group-header">
+							<td colspan="4">{ group.Label }</td>
+							<td style="text-align:right;font-variant-numeric:tabular-nums;font-size:0.75rem">{ formatDayNet(group.Net) }</td>
+						</tr>
+						for _, txn := range group.Txns {
+							@TransactionRow(txn, categories, tagMap[txn.ID], allTags)
+						}
+					}
+				</tbody>
+			</table>
+			<div style="padding:0.75rem 1rem;border-top:1px solid var(--border)">
+				@Pagination(page, total, limit, filters.QueryString())
+			</div>
+		}
+	</div>
+}
+
+templ TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags []db.Tag, allTags []db.Tag) {
+	<tr id={ fmt.Sprintf("txn-%s", txn.ID) }>
+		<td style="color:var(--muted);font-size:0.8rem;white-space:nowrap">{ txn.Date }</td>
+		<td>
+			<span style="font-size:0.875rem">{ txn.Name }</span>
+			if txn.Pending == 1 {
+				<span class="badge pending" style="margin-left:0.4rem;font-size:0.65rem">pending</span>
+			}
+			@TxnTagsCell(txn.ID, tags, allTags)
+		</td>
+		<td style="color:var(--muted);font-size:0.8rem;white-space:nowrap">
+			if txn.InstitutionName != nil && txn.AccountName != "" {
+				{ *txn.InstitutionName } - { txn.AccountName }
+			} else {
+				{ txn.AccountName }
+			}
+		</td>
+		<td id={ fmt.Sprintf("cat-%s", txn.ID) }>
+			@CategoryCellContent(txn, categories)
+		</td>
+		<td style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap">
+			@AmountCell(txn.Amount, txn.Currency)
+		</td>
+	</tr>
+}
+
+templ TxnTagsCell(txnID string, tags []db.Tag, allTags []db.Tag) {
+	{{ unapplied := filterUnappliedTags(allTags, tags) }}
+	{{ listID := fmt.Sprintf("tag-list-%s", txnID) }}
+	<div id={ fmt.Sprintf("tags-%s", txnID) } class="txn-tags">
+		for _, tag := range tags {
+			<span class="tag-pill">
+				<span style={ fmt.Sprintf("width:6px;height:6px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", tag.Color) }></span>
+				{ tag.Name }
+				<button
+					type="button"
+					class="tag-remove"
+					hx-delete={ fmt.Sprintf("/api/transactions/%s/tags/%s", txnID, tag.ID) }
+					hx-target={ fmt.Sprintf("#tags-%s", txnID) }
+					hx-swap="outerHTML"
+				>×</button>
+			</span>
+		}
+		<datalist id={ listID }>
+			for _, t := range unapplied {
+				<option value={ t.Name }></option>
+			}
+		</datalist>
+		<form
+			style="display:inline"
+			hx-post={ fmt.Sprintf("/api/transactions/%s/tags", txnID) }
+			hx-target={ fmt.Sprintf("#tags-%s", txnID) }
+			hx-swap="outerHTML"
+			hx-on--htmx-after-request="this.reset()"
+		>
+			<input
+				type="text"
+				name="tag_name"
+				class="tag-input"
+				placeholder="＋ tag"
+				list={ listID }
+				autocomplete="off"
+			/>
+		</form>
+	</div>
+}
+
+templ CategoryCellContent(txn db.ListTransactionsRow, categories []db.Category) {
+	<div class="cat-cell">
+		<span class="cat-chip" onclick="this.closest('.cat-cell').classList.add('editing')">
+			<span style={ fmt.Sprintf("width:8px;height:8px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", txnCategoryColor(txn)) }></span>
+			if txn.CategoryName != nil {
+				{ *txn.CategoryName }
+			} else {
+				<span style="color:var(--muted)">uncategorized</span>
+			}
+			if isLowConfidence(txn.CategoryConfidence) {
+				<span title="Plaid wasn't sure — consider reviewing" style="color:var(--yellow);margin-left:2px;font-size:0.9em">·</span>
+			}
+		</span>
+		<select
+			class="cat-select"
+			name="category_id"
+			hx-post={ fmt.Sprintf("/api/transactions/%s/category", txn.ID) }
+			hx-target={ fmt.Sprintf("#cat-%s", txn.ID) }
+			hx-swap="innerHTML"
+			hx-trigger="change"
+			onblur="setTimeout(()=>this.closest('.cat-cell')&&this.closest('.cat-cell').classList.remove('editing'),150)"
+		>
+			<option value="">— uncategorized —</option>
+			for _, cat := range categories {
+				if txn.CategoryID != nil && *txn.CategoryID == cat.ID {
+					<option value={ cat.ID } selected>{ cat.Name }</option>
+				} else {
+					<option value={ cat.ID }>{ cat.Name }</option>
+				}
+			}
+		</select>
+		if txn.CategorySource == "manual" && txn.CategoryID != nil {
+			<span class="rule-btn" id={ fmt.Sprintf("rule-btn-%s", txn.ID) }>
+				<form
+					style="display:inline"
+					hx-post="/api/rules"
+					hx-target={ fmt.Sprintf("#rule-btn-%s", txn.ID) }
+					hx-swap="innerHTML"
+				>
+					<input type="hidden" name="match_value" value={ txnMerchantName(txn) }/>
+					<input type="hidden" name="category_id" value={ *txn.CategoryID }/>
+					<button class="btn btn-ghost" style="font-size:0.7rem;padding:0.1rem 0.4rem;margin-left:0.3rem">+ rule</button>
+				</form>
+			</span>
+		}
+	</div>
+}
+
+func isLowConfidence(conf *string) bool {
+	if conf == nil {
+		return false
+	}
+	return *conf == "LOW" || *conf == "UNKNOWN"
+}
+
+func txnMerchantName(txn db.ListTransactionsRow) string {
+	if txn.MerchantName != nil && *txn.MerchantName != "" {
+		return *txn.MerchantName
+	}
+	return txn.Name
+}
+
+templ AmountCell(amount float64, currency string) {
+	if amount >= 0 {
+		<span class="amount-debit">{ fmt.Sprintf("%s %.2f", currency, amount) }</span>
+	} else {
+		<span class="amount-credit">{ fmt.Sprintf("+%s %.2f", currency, math.Abs(amount)) }</span>
+	}
+}
+
+templ Pagination(page, total, limit int, filterQS string) {
+	{{ sep := "?" }}
+	{{ if filterQS != "" { sep = "?" + filterQS + "&" } }}
+	<div style="display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:0.8rem">
+		<span>{ fmt.Sprintf("%d transactions total", total) }</span>
+		<div style="display:flex;gap:0.5rem">
+			if page > 1 {
+				<a href={ templ.SafeURL(fmt.Sprintf("/transactions%spage=%d", sep, page-1)) } class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem">← Prev</a>
+			}
+			if page*limit < total {
+				<a href={ templ.SafeURL(fmt.Sprintf("/transactions%spage=%d", sep, page+1)) } class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem">Next →</a>
+			}
+		</div>
+	</div>
+}

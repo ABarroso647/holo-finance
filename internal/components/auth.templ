@@ -1,0 +1,173 @@
+package components
+
+templ authLayout(title string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>{ title } — Holo</title>
+			<style>
+				*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+				:root {
+					--bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+					--text: #e2e8f0; --muted: #64748b; --accent: #6366f1;
+					--green: #22c55e; --red: #ef4444;
+				}
+				body { background: var(--bg); color: var(--text); font-family: system-ui, sans-serif;
+					display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+				.auth-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+					padding: 2rem; width: 100%; max-width: 360px; }
+				.logo { font-size: 1.5rem; font-weight: 700; text-align: center; margin-bottom: 1.5rem; }
+				h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; }
+				p { font-size: 0.85rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.6; }
+				button { width: 100%; padding: 0.75rem; background: var(--accent); color: #fff;
+					border: none; border-radius: 6px; font-size: 0.9rem; font-weight: 600; cursor: pointer; }
+				button:hover { opacity: 0.9; }
+				button:disabled { opacity: 0.5; cursor: not-allowed; }
+				#status { margin-top: 1rem; font-size: 0.82rem; text-align: center; min-height: 1.2em; }
+				.err { color: var(--red); }
+				a { color: var(--accent); font-size: 0.8rem; }
+			</style>
+		</head>
+		<body>
+			{ children... }
+		</body>
+	</html>
+}
+
+templ RegisterPage() {
+	@authLayout("Register") {
+		<div class="auth-card">
+			<div class="logo">Holo</div>
+			<h2>Set up your passkey</h2>
+			<p>Register a passkey (e.g. via 1Password) to secure access to Holo. You only need to do this once.</p>
+			<button id="register-btn" onclick="beginRegister()">Register Passkey</button>
+			<div id="status"></div>
+		</div>
+		<script>
+			async function beginRegister() {
+				const btn = document.getElementById('register-btn');
+				const status = document.getElementById('status');
+				btn.disabled = true;
+				status.textContent = 'Starting…';
+				status.className = '';
+				try {
+					const beginResp = await fetch('/auth/register/begin', { method: 'POST' });
+					if (!beginResp.ok) { throw new Error(await beginResp.text()); }
+					const options = await beginResp.json();
+					options.publicKey.challenge = base64url(options.publicKey.challenge);
+					options.publicKey.user.id = base64url(options.publicKey.user.id);
+					if (options.publicKey.excludeCredentials) {
+						options.publicKey.excludeCredentials = options.publicKey.excludeCredentials.map(c => ({
+							...c, id: base64url(c.id)
+						}));
+					}
+					const credential = await navigator.credentials.create(options);
+					const payload = {
+						id: credential.id,
+						rawId: arrayToBase64url(credential.rawId),
+						type: credential.type,
+						response: {
+							attestationObject: arrayToBase64url(credential.response.attestationObject),
+							clientDataJSON: arrayToBase64url(credential.response.clientDataJSON),
+						},
+					};
+					const finishResp = await fetch('/auth/register/finish', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload),
+					});
+					if (!finishResp.ok) { throw new Error(await finishResp.text()); }
+					status.textContent = '✓ Passkey registered! Redirecting…';
+					status.style.color = 'var(--green)';
+					setTimeout(() => window.location.href = '/', 800);
+				} catch (e) {
+					status.textContent = e.message || String(e);
+					status.className = 'err';
+					btn.disabled = false;
+				}
+			}
+			function base64url(val) {
+				if (typeof val === 'string') {
+					const b = atob(val.replace(/-/g,'+').replace(/_/g,'/'));
+					return Uint8Array.from(b, c => c.charCodeAt(0));
+				}
+				return val;
+			}
+			function arrayToBase64url(buf) {
+				return btoa(String.fromCharCode(...new Uint8Array(buf)))
+					.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+			}
+		</script>
+	}
+}
+
+templ LoginPage() {
+	@authLayout("Login") {
+		<div class="auth-card">
+			<div class="logo">Holo</div>
+			<h2>Sign in with your passkey</h2>
+			<p>Use your registered passkey (e.g. 1Password) to authenticate.</p>
+			<button id="login-btn" onclick="beginLogin()">Sign in with Passkey</button>
+			<div id="status"></div>
+		</div>
+		<script>
+			async function beginLogin() {
+				const btn = document.getElementById('login-btn');
+				const status = document.getElementById('status');
+				btn.disabled = true;
+				status.textContent = 'Waiting for passkey…';
+				status.className = '';
+				try {
+					const beginResp = await fetch('/auth/login/begin', { method: 'POST' });
+					if (!beginResp.ok) { throw new Error(await beginResp.text()); }
+					const options = await beginResp.json();
+					options.publicKey.challenge = base64url(options.publicKey.challenge);
+					if (options.publicKey.allowCredentials) {
+						options.publicKey.allowCredentials = options.publicKey.allowCredentials.map(c => ({
+							...c, id: base64url(c.id)
+						}));
+					}
+					const assertion = await navigator.credentials.get(options);
+					const payload = {
+						id: assertion.id,
+						rawId: arrayToBase64url(assertion.rawId),
+						type: assertion.type,
+						response: {
+							authenticatorData: arrayToBase64url(assertion.response.authenticatorData),
+							clientDataJSON: arrayToBase64url(assertion.response.clientDataJSON),
+							signature: arrayToBase64url(assertion.response.signature),
+							userHandle: assertion.response.userHandle ? arrayToBase64url(assertion.response.userHandle) : null,
+						},
+					};
+					const finishResp = await fetch('/auth/login/finish', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify(payload),
+					});
+					if (!finishResp.ok) { throw new Error(await finishResp.text()); }
+					const result = await finishResp.json();
+					status.textContent = '✓ Authenticated! Redirecting…';
+					status.style.color = 'var(--green)';
+					setTimeout(() => window.location.href = result.redirect || '/', 500);
+				} catch (e) {
+					status.textContent = e.message || String(e);
+					status.className = 'err';
+					btn.disabled = false;
+				}
+			}
+			function base64url(val) {
+				if (typeof val === 'string') {
+					const b = atob(val.replace(/-/g,'+').replace(/_/g,'/'));
+					return Uint8Array.from(b, c => c.charCodeAt(0));
+				}
+				return val;
+			}
+			function arrayToBase64url(buf) {
+				return btoa(String.fromCharCode(...new Uint8Array(buf)))
+					.replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+			}
+		</script>
+	}
+}

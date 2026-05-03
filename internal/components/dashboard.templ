@@ -1,0 +1,173 @@
+package components
+
+import (
+	"fmt"
+	"math"
+	db "github.com/abarroso647/holo/internal/db/generated"
+)
+
+templ DashboardPage(netWorth float64, spending float64, income float64, catsJSON string, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
+	{{ net := income - spending }}
+	@Layout("Dashboard") {
+		<div class="page-header">
+			<h1>Dashboard</h1>
+			<div style="display:flex;align-items:center;gap:0.75rem">
+				<span style="font-size:0.8rem;color:var(--muted)">{ monthLabel }</span>
+				if isLastMonth {
+					<a href="/" style="font-size:0.75rem;color:var(--accent);text-decoration:none">This month →</a>
+				} else {
+					<a href="/?month=last" style="font-size:0.75rem;color:var(--muted);text-decoration:none">← Last month</a>
+				}
+			</div>
+		</div>
+		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
+			<div class="card">
+				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Income</div>
+				<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.2f", income) }</div>
+			</div>
+			<div class="card">
+				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Spending</div>
+				<div style="font-size:1.6rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("$%.2f", spending) }</div>
+			</div>
+			<div class="card">
+				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Net</div>
+				if net >= 0 {
+					<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("+$%.2f", net) }</div>
+				} else {
+					<div style="font-size:1.6rem;font-weight:700;color:var(--red)">{ fmt.Sprintf("-$%.2f", math.Abs(net)) }</div>
+				}
+				<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Net worth: { fmt.Sprintf("$%.2f", netWorth) }</div>
+			</div>
+		</div>
+		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+			<div class="card">
+				<div style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem">Top Spending — { monthLabel }</div>
+				if catsJSON == `{"labels":[],"values":[],"colors":[]}` {
+					<p style="color:var(--muted);font-size:0.85rem">No spending data yet.</p>
+				} else {
+					<div hidden data-cats={ catsJSON } id="dash-cats-data"></div>
+					<div style="position:relative;height:220px">
+						<canvas id="dash-cats-chart"></canvas>
+					</div>
+					<script>
+						(function() {
+							try {
+								const data = JSON.parse(document.getElementById('dash-cats-data').dataset.cats);
+								new Chart(document.getElementById('dash-cats-chart'), {
+									type: 'bar',
+									data: {
+										labels: data.labels,
+										datasets: [{
+											data: data.values,
+											backgroundColor: data.colors.map(c => c + '33'),
+											borderColor: data.colors,
+											borderWidth: 1,
+											borderRadius: 3,
+										}]
+									},
+									options: {
+										indexAxis: 'y',
+										responsive: true,
+										maintainAspectRatio: false,
+										plugins: { legend: { display: false } },
+										scales: {
+											x: {
+												grid: { color: 'rgba(255,255,255,0.04)' },
+												ticks: { color: '#64748b', font: { size: 11 }, callback: v => '$' + v.toFixed(0) }
+											},
+											y: {
+												grid: { display: false },
+												ticks: { color: '#e2e8f0', font: { size: 11 } }
+											}
+										}
+									}
+								});
+							} catch(e) {
+								document.getElementById('dash-cats-chart').insertAdjacentHTML('afterend', '<p style="color:var(--red);font-size:0.75rem">Chart error: ' + e.message + '</p>');
+							}
+						})();
+					</script>
+				}
+			</div>
+			<div class="card" style="padding:0">
+				<div style="padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">Recent Transactions</div>
+				if len(recentTxns) == 0 {
+					<p style="color:var(--muted);font-size:0.85rem;padding:1rem">No transactions yet.</p>
+				} else {
+					<table>
+						<tbody>
+							for _, txn := range recentTxns {
+								@dashTxnRow(txn)
+							}
+						</tbody>
+					</table>
+					<div style="padding:0.5rem 1rem;border-top:1px solid var(--border)">
+						<a href="/transactions" style="font-size:0.75rem;color:var(--muted)">View all →</a>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}
+
+templ dashTxnRow(txn db.ListTransactionsRow) {
+	<tr>
+		<td style="color:var(--muted);font-size:0.75rem;white-space:nowrap;width:4.5rem">{ txn.Date[5:] }</td>
+		<td style="font-size:0.8rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ txn.Name }</td>
+		<td style="font-size:0.75rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+			if txn.CategoryName != nil {
+				<span style="display:inline-flex;align-items:center;gap:4px;color:var(--muted)">
+					<span style={ fmt.Sprintf("width:6px;height:6px;border-radius:50%%;background:%s;flex-shrink:0", txnCategoryColor(txn)) }></span>
+					{ *txn.CategoryName }
+				</span>
+			}
+		</td>
+		<td style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:0.8rem">
+			@AmountCell(txn.Amount, txn.Currency)
+		</td>
+	</tr>
+}
+
+func balanceColor(amount float64, isCredit bool) string {
+	if isCredit {
+		return "var(--red)"
+	}
+	if amount >= 0 {
+		return "var(--green)"
+	}
+	return "var(--red)"
+}
+
+func typeBadgeClass(t string) string {
+	switch t {
+	case "depository":
+		return "badge-depository"
+	case "credit":
+		return "badge-credit"
+	case "investment":
+		return "badge-investment"
+	case "loan":
+		return "badge-loan"
+	}
+	return ""
+}
+
+func groupAccountsByInstitution(accounts []db.ListAccountsWithInstitutionRow) map[string][]db.ListAccountsWithInstitutionRow {
+	m := make(map[string][]db.ListAccountsWithInstitutionRow)
+	for _, a := range accounts {
+		m[a.InstitutionName] = append(m[a.InstitutionName], a)
+	}
+	return m
+}
+
+func institutionOrder(accounts []db.ListAccountsWithInstitutionRow) []string {
+	seen := make(map[string]bool)
+	var order []string
+	for _, a := range accounts {
+		if !seen[a.InstitutionName] {
+			seen[a.InstitutionName] = true
+			order = append(order, a.InstitutionName)
+		}
+	}
+	return order
+}
