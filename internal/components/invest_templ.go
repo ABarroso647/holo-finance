@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 	"time"
 )
 

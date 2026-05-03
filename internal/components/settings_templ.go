@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	db "github.com/abarroso647/holo/internal/db/generated"
+	db "holo/internal/db/generated"
 )
 
 type CardRatesData struct {
@@ -914,8 +914,6 @@ func settingsCardRates(cards []CardRatesData, categories []db.Category) templ.Co
 	})
 }
 
-// SettingsCardRatesContent renders the rates table + manual add form.
-// HTMX swap target for fetch-rates, add-rate, and delete-rate from settings.
 func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesForAccountRow, categories []db.Category) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
@@ -944,7 +942,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 		var templ_7745c5c3_Var45 string
 		templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("settings-rates-%s", accountID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 343, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 341, Col: 54}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 		if templ_7745c5c3_Err != nil {
@@ -972,7 +970,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 					var templ_7745c5c3_Var46 string
 					templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(rate.CategoryName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 359, Col: 60}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 357, Col: 60}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 					if templ_7745c5c3_Err != nil {
@@ -990,7 +988,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 					var templ_7745c5c3_Var47 string
 					templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(*rate.RawCategory)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 361, Col: 62}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 359, Col: 62}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 					if templ_7745c5c3_Err != nil {
@@ -1013,7 +1011,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 				var templ_7745c5c3_Var48 string
 				templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f%%", rate.RewardRate))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 366, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 364, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
 				if templ_7745c5c3_Err != nil {
@@ -1027,7 +1025,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 					var templ_7745c5c3_Var49 string
 					templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.0f%s", *rate.CapAmount, capPeriodLabel(rate.CapPeriod)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 369, Col: 82}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 367, Col: 82}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 					if templ_7745c5c3_Err != nil {
@@ -1046,7 +1044,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 				var templ_7745c5c3_Var50 string
 				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/rates/%s?view=settings", accountID, rate.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 377, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 375, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 				if templ_7745c5c3_Err != nil {
@@ -1059,7 +1057,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 				var templ_7745c5c3_Var51 string
 				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#settings-rates-%s", accountID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 378, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 376, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 				if templ_7745c5c3_Err != nil {
@@ -1082,7 +1080,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 		var templ_7745c5c3_Var52 string
 		templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/rates?view=settings", accountID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 391, Col: 72}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 389, Col: 72}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 		if templ_7745c5c3_Err != nil {
@@ -1095,7 +1093,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 		var templ_7745c5c3_Var53 string
 		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#settings-rates-%s", accountID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 392, Col: 59}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 390, Col: 59}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 		if templ_7745c5c3_Err != nil {
@@ -1113,7 +1111,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 			var templ_7745c5c3_Var54 string
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(cat.ID)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 399, Col: 27}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 397, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
@@ -1126,7 +1124,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(cat.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 399, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 397, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 			if templ_7745c5c3_Err != nil {
@@ -1173,7 +1171,7 @@ func settingsAI(model string) templ.Component {
 		var templ_7745c5c3_Var57 string
 		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(model)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 448, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 446, Col: 17}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
 		if templ_7745c5c3_Err != nil {

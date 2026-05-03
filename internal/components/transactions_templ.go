@@ -10,7 +10,7 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import (
 	"fmt"
-	"github.com/abarroso647/holo/internal/db/generated"
+	"holo/internal/db/generated"
 	"math"
 )
 
