@@ -1,0 +1,46 @@
+package components
+
+templ ConnectPage() {
+	@Layout("Connect Bank") {
+		<div class="page-header">
+			<h1>Connect a Bank</h1>
+		</div>
+		<div class="card" style="max-width:480px">
+			<p style="color:var(--muted);margin-bottom:1.25rem">Link your bank account securely via Plaid. Your credentials go directly to Plaid — Holo only receives read-only transaction data.</p>
+			<button id="link-btn" class="btn btn-primary" onclick="openPlaidLink()">
+				Connect Bank Account
+			</button>
+		</div>
+		<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+		<script>
+			async function openPlaidLink() {
+				const btn = document.getElementById('link-btn');
+				btn.disabled = true;
+				btn.textContent = 'Loading…';
+
+				const res = await fetch('/api/plaid/link-token', { method: 'POST' });
+				const { link_token } = await res.json();
+
+				const handler = Plaid.create({
+					token: link_token,
+					onSuccess: async (publicToken, metadata) => {
+						await fetch('/api/plaid/exchange-token', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								public_token: publicToken,
+								institution_name: metadata.institution?.name ?? 'Unknown',
+							}),
+						});
+						window.location.href = '/transactions';
+					},
+					onExit: () => {
+						btn.disabled = false;
+						btn.textContent = 'Connect Bank Account';
+					},
+				});
+				handler.open();
+			}
+		</script>
+	}
+}

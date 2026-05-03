@@ -1,0 +1,14 @@
+services:
+  holo:
+    build: .
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - holo-data:/app/data
+    environment:
+      - DB_PATH=/app/data/holo.db
+    restart: unless-stopped
+
+volumes:
+  holo-data:

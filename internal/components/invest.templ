@@ -1,0 +1,258 @@
+package components
+
+import (
+	"fmt"
+	"time"
+	db "holo/internal/db/generated"
+)
+
+type MonthFlow struct {
+	Month    string
+	Income   float64
+	Spending float64
+	Net      float64
+}
+
+type InvestData struct {
+	Months      []MonthFlow
+	AvgIncome   float64
+	AvgSpending float64
+	AvgSurplus  float64
+	Buffer      float64
+	Recommended float64
+	Holdings    []db.ListAllHoldingsRow
+}
+
+templ InvestPage(d InvestData) {
+	@Layout("Invest") {
+		<div class="page-header">
+			<h1>Invest</h1>
+		</div>
+		<div style="display:flex;flex-direction:column;gap:1.5rem">
+			@investSurplusTiles(d)
+			@investRecommendation(d)
+			@investMonthlyTable(d.Months)
+			@investHoldings(d.Holdings)
+		</div>
+	}
+}
+
+templ investSurplusTiles(d InvestData) {
+	<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+		<div class="card">
+			<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Avg Monthly Income</div>
+			<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.0f", d.AvgIncome) }</div>
+			<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">last { investMonthCount(d.Months) } months</div>
+		</div>
+		<div class="card">
+			<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Avg Monthly Spending</div>
+			<div style="font-size:1.6rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("$%.0f", d.AvgSpending) }</div>
+			<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">excl. transfers</div>
+		</div>
+		<div class="card">
+			<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Avg Monthly Surplus</div>
+			if d.AvgSurplus >= 0 {
+				<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.0f", d.AvgSurplus) }</div>
+			} else {
+				<div style="font-size:1.6rem;font-weight:700;color:var(--red)">{ fmt.Sprintf("-$%.0f", -d.AvgSurplus) }</div>
+			}
+			<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">income − spending</div>
+		</div>
+	</div>
+}
+
+templ investRecommendation(d InvestData) {
+	<div class="card">
+		<h2 style="margin-bottom:1rem">This Month's Recommendation</h2>
+		<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:start">
+			<div>
+				<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Recommended Contribution</div>
+				if d.Recommended > 0 {
+					<div style="font-size:2.2rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.0f", d.Recommended) }</div>
+					<div style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">
+						avg surplus { fmt.Sprintf("$%.0f", d.AvgSurplus) } − buffer { fmt.Sprintf("$%.0f", d.Buffer) }
+					</div>
+				} else {
+					<div style="font-size:1.4rem;font-weight:700;color:var(--muted)">$0</div>
+					<div style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">
+						Surplus { fmt.Sprintf("$%.0f", d.AvgSurplus) } is below your { fmt.Sprintf("$%.0f", d.Buffer) } buffer.
+					</div>
+				}
+			</div>
+			<div>
+				<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Cash Buffer</div>
+				<p style="font-size:0.82rem;color:var(--muted);margin-bottom:0.75rem">Keep this much in reserve before contributing. Adjust to fit your comfort level.</p>
+				<form
+					style="display:flex;gap:0.5rem;align-items:center"
+					hx-post="/api/invest/buffer"
+					hx-target="#buffer-result"
+					hx-swap="innerHTML"
+				>
+					<span style="font-size:0.85rem;color:var(--muted)">$</span>
+					<input
+						type="number"
+						name="buffer"
+						class="filter-input"
+						style="width:100px"
+						min="0"
+						step="50"
+						value={ fmt.Sprintf("%.0f", d.Buffer) }
+					/>
+					<button type="submit" class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem">Save</button>
+					<span id="buffer-result" style="font-size:0.75rem"></span>
+				</form>
+			</div>
+		</div>
+	</div>
+}
+
+templ investMonthlyTable(months []MonthFlow) {
+	<div class="card">
+		<h2 style="margin-bottom:1rem">Monthly Breakdown</h2>
+		if len(months) == 0 {
+			<p style="color:var(--muted);font-size:0.85rem">No transaction data yet. Sync your accounts to get started.</p>
+		} else {
+			<table>
+				<thead>
+					<tr>
+						<th>Month</th>
+						<th style="text-align:right">Income</th>
+						<th style="text-align:right">Spending</th>
+						<th style="text-align:right">Net</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, m := range months {
+						<tr>
+							<td style="color:var(--muted)">{ investFormatMonth(m.Month) }</td>
+							<td style="text-align:right;color:var(--green)">{ fmt.Sprintf("$%.0f", m.Income) }</td>
+							<td style="text-align:right">{ fmt.Sprintf("$%.0f", m.Spending) }</td>
+							<td style="text-align:right">
+								if m.Net >= 0 {
+									<span style="color:var(--green);font-weight:600">+{ fmt.Sprintf("$%.0f", m.Net) }</span>
+								} else {
+									<span style="color:var(--red);font-weight:600">-{ fmt.Sprintf("$%.0f", -m.Net) }</span>
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+templ investHoldings(holdings []db.ListAllHoldingsRow) {
+	<div class="card">
+		<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
+			<h2 style="margin:0">Investment Holdings</h2>
+			<button
+				class="btn btn-ghost"
+				style="font-size:0.78rem;padding:0.2rem 0.6rem;margin-left:auto"
+				hx-post="/api/plaid/sync-investments"
+				hx-target="#invest-sync-result"
+				hx-swap="innerHTML"
+				hx-indicator="#invest-sync-result"
+			>Sync Holdings</button>
+			<span id="invest-sync-result" style="font-size:0.78rem"></span>
+		</div>
+		if len(holdings) == 0 {
+			<p style="color:var(--muted);font-size:0.85rem">
+				No holdings data yet. Connect a Questrade account once Plaid Investments is enabled for your account, then sync.
+			</p>
+		} else {
+			{{ var totalValue float64
+			for _, h := range holdings {
+				if h.InstitutionValue != nil { totalValue += *h.InstitutionValue }
+			} }}
+			<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem">
+				Total market value: <span style="color:var(--text);font-weight:600">{ fmt.Sprintf("$%.2f", totalValue) }</span>
+			</div>
+			<table>
+				<thead>
+					<tr>
+						<th>Security</th>
+						<th>Account</th>
+						<th style="text-align:right">Qty</th>
+						<th style="text-align:right">Price</th>
+						<th style="text-align:right">Value</th>
+						<th style="text-align:right">Cost Basis</th>
+						<th style="text-align:right">Gain/Loss</th>
+					</tr>
+				</thead>
+				<tbody>
+					for _, h := range holdings {
+						<tr>
+							<td>
+								<div style="font-weight:500">
+									if h.TickerSymbol != nil && *h.TickerSymbol != "" {
+										{ *h.TickerSymbol }
+									} else {
+										{ h.SecurityName }
+									}
+								</div>
+								if h.TickerSymbol != nil && *h.TickerSymbol != "" {
+									<div style="font-size:0.75rem;color:var(--muted)">{ h.SecurityName }</div>
+								}
+							</td>
+							<td style="color:var(--muted);font-size:0.8rem">
+								{ h.AccountName }
+								<div style="font-size:0.72rem">{ h.InstitutionName }</div>
+							</td>
+							<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("%.4g", h.Quantity) }</td>
+							<td style="text-align:right;font-variant-numeric:tabular-nums">
+								if h.InstitutionPrice != nil {
+									{ fmt.Sprintf("$%.2f", *h.InstitutionPrice) }
+								} else {
+									<span style="color:var(--muted)">—</span>
+								}
+							</td>
+							<td style="text-align:right;font-weight:600;font-variant-numeric:tabular-nums">
+								if h.InstitutionValue != nil {
+									{ fmt.Sprintf("$%.2f", *h.InstitutionValue) }
+								} else {
+									<span style="color:var(--muted)">—</span>
+								}
+							</td>
+							<td style="text-align:right;color:var(--muted);font-variant-numeric:tabular-nums">
+								if h.CostBasis != nil {
+									{ fmt.Sprintf("$%.2f", *h.CostBasis) }
+								} else {
+									<span>—</span>
+								}
+							</td>
+							<td style="text-align:right;font-variant-numeric:tabular-nums">
+								if h.InstitutionValue != nil && h.CostBasis != nil {
+									{{ gain := *h.InstitutionValue - *h.CostBasis }}
+									if gain >= 0 {
+										<span style="color:var(--green)">+{ fmt.Sprintf("$%.2f", gain) }</span>
+									} else {
+										<span style="color:var(--red)">-{ fmt.Sprintf("$%.2f", -gain) }</span>
+									}
+								} else {
+									<span style="color:var(--muted)">—</span>
+								}
+							</td>
+						</tr>
+					}
+				</tbody>
+			</table>
+		}
+	</div>
+}
+
+func investFormatMonth(s string) string {
+	t, err := time.Parse("2006-01", s)
+	if err != nil {
+		return s
+	}
+	return t.Format("Jan 2006")
+}
+
+func investMonthCount(months []MonthFlow) string {
+	n := len(months)
+	if n == 1 {
+		return "1"
+	}
+	return fmt.Sprintf("%d", n)
+}
