@@ -33,7 +33,14 @@ func (h *PlaidHandler) LinkToken(w http.ResponseWriter, r *http.Request) {
 	req.SetProducts([]plaid.Products{
 		plaid.PRODUCTS_TRANSACTIONS,
 		plaid.PRODUCTS_LIABILITIES,
+		plaid.PRODUCTS_INVESTMENTS,
 	})
+
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		scheme = "http"
+	}
+	req.SetRedirectUri(scheme + "://" + r.Host + "/connect")
 
 	resp, _, err := h.api.PlaidApi.LinkTokenCreate(r.Context()).LinkTokenCreateRequest(*req).Execute()
 	if err != nil {

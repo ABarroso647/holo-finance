@@ -13,21 +13,22 @@ templ ConnectPage() {
 		</div>
 		<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 		<script>
-			async function openPlaidLink() {
+			async function openPlaidLink(receivedRedirectUri) {
 				const btn = document.getElementById('link-btn');
-				btn.disabled = true;
-				btn.textContent = 'Loading…';
+				if (btn) {
+					btn.disabled = true;
+					btn.textContent = 'Loading…';
+				}
 
 				const res = await fetch('/api/plaid/link-token', { method: 'POST' });
 				if (!res.ok) {
-					btn.disabled = false;
-					btn.textContent = 'Connect Bank Account';
-					alert('Failed to start Plaid: ' + (await res.text()));
+					if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
+					alert('Failed to connect — check that Plaid is configured correctly.');
 					return;
 				}
 				const { link_token } = await res.json();
 
-				const handler = Plaid.create({
+				const config = {
 					token: link_token,
 					onSuccess: async (publicToken, metadata) => {
 						await fetch('/api/plaid/exchange-token', {
@@ -41,11 +42,19 @@ templ ConnectPage() {
 						window.location.href = '/transactions';
 					},
 					onExit: () => {
-						btn.disabled = false;
-						btn.textContent = 'Connect Bank Account';
+						if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
 					},
-				});
-				handler.open();
+				};
+				if (receivedRedirectUri) {
+					config.receivedRedirectUri = receivedRedirectUri;
+				}
+				Plaid.create(config).open();
+			}
+
+			// Resume OAuth flow if returning from institution redirect
+			const params = new URLSearchParams(window.location.search);
+			if (params.has('oauth_state_id')) {
+				openPlaidLink(window.location.href);
 			}
 		</script>
 	}
