@@ -159,11 +159,13 @@ type TransactionTag struct {
 }
 
 type WebauthnCredential struct {
-	ID           string    `json:"id"`
-	CredentialID []byte    `json:"credential_id"`
-	PublicKey    []byte    `json:"public_key"`
-	SignCount    int64     `json:"sign_count"`
-	CreatedAt    time.Time `json:"created_at"`
+	ID             string    `json:"id"`
+	CredentialID   []byte    `json:"credential_id"`
+	PublicKey      []byte    `json:"public_key"`
+	SignCount      int64     `json:"sign_count"`
+	BackupEligible int64     `json:"backup_eligible"`
+	BackupState    int64     `json:"backup_state"`
+	CreatedAt      time.Time `json:"created_at"`
 }
 
 type WebhookEvent struct {

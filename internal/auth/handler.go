@@ -72,6 +72,10 @@ func (h *Handler) loadUser(r *http.Request) (*holoUser, error) {
 		user.creds = append(user.creds, webauthn.Credential{
 			ID:        row.CredentialID,
 			PublicKey: row.PublicKey,
+			Flags: webauthn.CredentialFlags{
+				BackupEligible: row.BackupEligible == 1,
+				BackupState:    row.BackupState == 1,
+			},
 			Authenticator: webauthn.Authenticator{
 				SignCount: uint32(row.SignCount),
 			},
@@ -130,11 +134,21 @@ func (h *Handler) FinishRegistration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	be := int64(0)
+	if credential.Flags.BackupEligible {
+		be = 1
+	}
+	bs := int64(0)
+	if credential.Flags.BackupState {
+		bs = 1
+	}
 	if err := h.queries.CreateWebAuthnCredential(r.Context(), db.CreateWebAuthnCredentialParams{
-		ID:           uuid.New().String(),
-		CredentialID: credential.ID,
-		PublicKey:    credential.PublicKey,
-		SignCount:    int64(credential.Authenticator.SignCount),
+		ID:             uuid.New().String(),
+		CredentialID:   credential.ID,
+		PublicKey:      credential.PublicKey,
+		SignCount:      int64(credential.Authenticator.SignCount),
+		BackupEligible: be,
+		BackupState:    bs,
 	}); err != nil {
 		http.Error(w, fmt.Sprintf("store credential: %v", err), http.StatusInternalServerError)
 		return
@@ -187,9 +201,19 @@ func (h *Handler) FinishLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.queries.UpdateWebAuthnSignCount(r.Context(), db.UpdateWebAuthnSignCountParams{ //nolint:errcheck
-		SignCount:    int64(credential.Authenticator.SignCount),
-		CredentialID: credential.ID,
+	be := int64(0)
+	if credential.Flags.BackupEligible {
+		be = 1
+	}
+	bs := int64(0)
+	if credential.Flags.BackupState {
+		bs = 1
+	}
+	h.queries.UpdateWebAuthnCredential(r.Context(), db.UpdateWebAuthnCredentialParams{ //nolint:errcheck
+		SignCount:      int64(credential.Authenticator.SignCount),
+		BackupEligible: be,
+		BackupState:    bs,
+		CredentialID:   credential.ID,
 	})
 
 	h.setAuthenticated(w, r)

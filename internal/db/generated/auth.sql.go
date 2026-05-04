@@ -21,15 +21,17 @@ func (q *Queries) CountWebAuthnCredentials(ctx context.Context) (int64, error) {
 }
 
 const createWebAuthnCredential = `-- name: CreateWebAuthnCredential :exec
-INSERT INTO webauthn_credentials (id, credential_id, public_key, sign_count)
-VALUES (?, ?, ?, ?)
+INSERT INTO webauthn_credentials (id, credential_id, public_key, sign_count, backup_eligible, backup_state)
+VALUES (?, ?, ?, ?, ?, ?)
 `
 
 type CreateWebAuthnCredentialParams struct {
-	ID           string `json:"id"`
-	CredentialID []byte `json:"credential_id"`
-	PublicKey    []byte `json:"public_key"`
-	SignCount    int64  `json:"sign_count"`
+	ID             string `json:"id"`
+	CredentialID   []byte `json:"credential_id"`
+	PublicKey      []byte `json:"public_key"`
+	SignCount      int64  `json:"sign_count"`
+	BackupEligible int64  `json:"backup_eligible"`
+	BackupState    int64  `json:"backup_state"`
 }
 
 func (q *Queries) CreateWebAuthnCredential(ctx context.Context, arg CreateWebAuthnCredentialParams) error {
@@ -38,12 +40,14 @@ func (q *Queries) CreateWebAuthnCredential(ctx context.Context, arg CreateWebAut
 		arg.CredentialID,
 		arg.PublicKey,
 		arg.SignCount,
+		arg.BackupEligible,
+		arg.BackupState,
 	)
 	return err
 }
 
 const getWebAuthnCredentialByCredentialID = `-- name: GetWebAuthnCredentialByCredentialID :one
-SELECT id, credential_id, public_key, sign_count, created_at FROM webauthn_credentials WHERE credential_id = ?
+SELECT id, credential_id, public_key, sign_count, backup_eligible, backup_state, created_at FROM webauthn_credentials WHERE credential_id = ?
 `
 
 func (q *Queries) GetWebAuthnCredentialByCredentialID(ctx context.Context, credentialID []byte) (WebauthnCredential, error) {
@@ -54,13 +58,15 @@ func (q *Queries) GetWebAuthnCredentialByCredentialID(ctx context.Context, crede
 		&i.CredentialID,
 		&i.PublicKey,
 		&i.SignCount,
+		&i.BackupEligible,
+		&i.BackupState,
 		&i.CreatedAt,
 	)
 	return i, err
 }
 
 const listWebAuthnCredentials = `-- name: ListWebAuthnCredentials :many
-SELECT id, credential_id, public_key, sign_count, created_at FROM webauthn_credentials ORDER BY created_at
+SELECT id, credential_id, public_key, sign_count, backup_eligible, backup_state, created_at FROM webauthn_credentials ORDER BY created_at
 `
 
 func (q *Queries) ListWebAuthnCredentials(ctx context.Context) ([]WebauthnCredential, error) {
@@ -77,6 +83,8 @@ func (q *Queries) ListWebAuthnCredentials(ctx context.Context) ([]WebauthnCreden
 			&i.CredentialID,
 			&i.PublicKey,
 			&i.SignCount,
+			&i.BackupEligible,
+			&i.BackupState,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err
@@ -92,16 +100,23 @@ func (q *Queries) ListWebAuthnCredentials(ctx context.Context) ([]WebauthnCreden
 	return items, nil
 }
 
-const updateWebAuthnSignCount = `-- name: UpdateWebAuthnSignCount :exec
-UPDATE webauthn_credentials SET sign_count = ? WHERE credential_id = ?
+const updateWebAuthnCredential = `-- name: UpdateWebAuthnCredential :exec
+UPDATE webauthn_credentials SET sign_count = ?, backup_eligible = ?, backup_state = ? WHERE credential_id = ?
 `
 
-type UpdateWebAuthnSignCountParams struct {
-	SignCount    int64  `json:"sign_count"`
-	CredentialID []byte `json:"credential_id"`
+type UpdateWebAuthnCredentialParams struct {
+	SignCount      int64  `json:"sign_count"`
+	BackupEligible int64  `json:"backup_eligible"`
+	BackupState    int64  `json:"backup_state"`
+	CredentialID   []byte `json:"credential_id"`
 }
 
-func (q *Queries) UpdateWebAuthnSignCount(ctx context.Context, arg UpdateWebAuthnSignCountParams) error {
-	_, err := q.db.ExecContext(ctx, updateWebAuthnSignCount, arg.SignCount, arg.CredentialID)
+func (q *Queries) UpdateWebAuthnCredential(ctx context.Context, arg UpdateWebAuthnCredentialParams) error {
+	_, err := q.db.ExecContext(ctx, updateWebAuthnCredential,
+		arg.SignCount,
+		arg.BackupEligible,
+		arg.BackupState,
+		arg.CredentialID,
+	)
 	return err
 }
