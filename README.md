@@ -1,66 +1,51 @@
-  # Holo Personal Finance Tracker
+# Holo Personal Finance Tracker
 
-  Self-hosted personal finance dashboard. Connects to your Canadian bank accounts via Plaid, automatically categorizes transactions, and gives you a clean view of your spending, credit cards, and net worth.
+Self-hosted personal finance dashboard. Connects to your Canadian bank accounts via Plaid, automatically categorizes transactions, and gives you a clean view of your spending, credit cards, and net worth.
 
-  Self-hosted personal finance dashboard. Connects to your Canadian bank accounts via Plaid, automatically categorizes transactions, and gives you a clean view of your spending, credit cards, and net worth.
+## Features
 
-  ## Features
+- **Dashboard** — net worth snapshot, monthly income vs spending, top categories, recent transactions
+- **Accounts** — balances across all linked institutions, expandable per-account transaction history
+- **Transactions** — searchable, filterable transaction list with inline recategorization and tags
+- **Spending** — spending by category, by card, and monthly trend charts
+- **Cards** — credit card balances, utilization, payment due dates, and reward rates
+- **Settings** — category management, card reward rates, friendly account names
 
-  - **Dashboard** — net worth snapshot, monthly income vs spending, top categories, recent transactions
-  - **Accounts** — balances across all linked institutions, expandable per-account transaction history
-  - **Transactions** — searchable, filterable transaction list with inline recategorization and tags
-  - **Spending** — spending by category, by card, and monthly trend charts
-  - **Cards** — credit card balances, utilization, payment due dates, and reward rates
-  - **Settings** — category management, card reward rates, friendly account names
+Transactions are categorized automatically via a rules engine with an OpenRouter/DeepSeek LLM fallback for anything that doesn't match a rule.
 
-  Transactions are categorized automatically via a rules engine with an OpenRouter/DeepSeek LLM fallback for anything that doesn't match a rule.
+## Setup
 
-  ## Requirements
+    cp .env.example .env
 
-  - Go 1.22+
-  - Plaid account (sandbox is free)
-  - OpenRouter API key (for LLM categorization)
+| Variable | Required | Description |
+|---|---|---|
+| `PLAID_CLIENT_ID` | Yes | From your [Plaid dashboard](https://dashboard.plaid.com) |
+| `PLAID_SECRET` | Yes | From your Plaid dashboard — use the sandbox or production secret |
+| `PLAID_ENV` | Yes | `sandbox` for testing, `production` for real accounts |
+| `OPENROUTER_API_KEY` | Yes | From [openrouter.ai](https://openrouter.ai) — used for LLM transaction categorization |
+| `SESSION_SECRET` | Yes | Any random 32+ character string — signs auth session cookies |
+| `DB_PATH` | No | Path to the SQLite database file. Defaults to `./holo.db` |
+| `PORT` | No | Port to listen on. Defaults to `8080` |
+| `WEBAUTHN_RPID` | No | Domain without protocol, e.g. `holo.example.com`. Defaults to `localhost` |
+| `WEBAUTHN_RPORIGIN` | No | Full origin, e.g. `https://holo.example.com`. Defaults to `http://localhost:8080` |
 
-  Install codegen tools once:
+## Running locally
 
-      go install github.com/a-h/templ/cmd/templ@latest
-      go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
-      go install github.com/pressly/goose/v3/cmd/goose@latest
+    docker compose up --build
 
-  ## Setup
+Open http://localhost:8080. On first run visit `/auth/register` to set up your passkey, then `/connect` to link your bank accounts.
 
-      cp .env.example .env
+For sandbox testing use `user_good` / `pass_good` in the Plaid Link flow.
 
-  Fill in .env:
+## Deployment
 
-      PLAID_CLIENT_ID=
-      PLAID_SECRET=
-      PLAID_ENV=sandbox
-      OPENROUTER_API_KEY=
-      SESSION_SECRET=
-      DB_PATH=./holo.db
-      PORT=8080
-      WEBAUTHN_RPID=localhost
-      WEBAUTHN_RPORIGIN=http://localhost:8080
+On every push to `main`, GitHub Actions builds a multi-platform image and pushes it to GHCR.
 
-  ## Run
+On your server, copy `compose.prod.yaml` and a filled-in `.env`, then:
 
-      go run ./cmd/holo
+    docker compose -f compose.prod.yaml pull
+    docker compose -f compose.prod.yaml up -d
 
-  Open http://localhost:8080. On first run visit /auth/register to set up your passkey, then /connect to link your bank accounts.
+## Contributing
 
-  For sandbox testing use user_good / pass_good in the Plaid Link flow.
-
-  ## Docker
-
-      docker compose up
-
-  ## Development
-
-  After editing .templ files:
-
-      templ generate ./...
-
-  After editing SQL schema or queries:
-
-      sqlc generate
+See [DEVELOPMENT.md](DEVELOPMENT.md).
