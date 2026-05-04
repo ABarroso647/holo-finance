@@ -32,6 +32,8 @@ func (h *PlaidHandler) LinkToken(w http.ResponseWriter, r *http.Request) {
 	req := plaid.NewLinkTokenCreateRequest("Holo", "en", []plaid.CountryCode{plaid.COUNTRYCODE_CA}, *user)
 	req.SetProducts([]plaid.Products{
 		plaid.PRODUCTS_TRANSACTIONS,
+	})
+	req.SetOptionalProducts([]plaid.Products{
 		plaid.PRODUCTS_LIABILITIES,
 		plaid.PRODUCTS_INVESTMENTS,
 	})
