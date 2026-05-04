@@ -1,0 +1,14 @@
+services:
+  holo:
+    image: ghcr.io/abarroso647/holo-finance:latest
+    ports:
+      - "${PORT:-8080}:8080"
+    env_file: .env
+    volumes:
+      - holo-data:/app/data
+    environment:
+      - DB_PATH=/app/data/holo.db
+    restart: unless-stopped
+
+volumes:
+  holo-data:
