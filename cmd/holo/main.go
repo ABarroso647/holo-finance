@@ -44,6 +44,11 @@ func main() {
 		log.Fatalf("seed categories: %v", err)
 	}
 
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
 	secret := os.Getenv("SESSION_SECRET")
 	if secret == "" {
 		secret = "dev-secret-change-in-production"
@@ -51,7 +56,7 @@ func main() {
 	}
 	store := sessions.NewCookieStore([]byte(secret))
 
-	authHandler, err := auth.New(queries, store)
+	authHandler, err := auth.New(queries, store, port)
 	if err != nil {
 		log.Fatalf("auth init: %v", err)
 	}
@@ -135,11 +140,6 @@ func main() {
 			r.Post("/api/plaid/webhook", plaidHandler.Webhook)
 		}
 	})
-
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
 
 	log.Printf("starting holo on :%s", port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
