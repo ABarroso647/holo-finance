@@ -19,6 +19,12 @@ templ ConnectPage() {
 				btn.textContent = 'Loading…';
 
 				const res = await fetch('/api/plaid/link-token', { method: 'POST' });
+				if (!res.ok) {
+					btn.disabled = false;
+					btn.textContent = 'Connect Bank Account';
+					alert('Failed to start Plaid: ' + (await res.text()));
+					return;
+				}
 				const { link_token } = await res.json();
 
 				const handler = Plaid.create({

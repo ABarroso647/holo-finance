@@ -2,7 +2,7 @@ services:
   holo:
     image: ghcr.io/abarroso647/holo-finance:latest
     ports:
-      - "${PORT:-8080}:8080"
+      - "${PORT}:${PORT}"
     env_file: .env
     volumes:
       - holo-data:/app/data
