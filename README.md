@@ -34,12 +34,13 @@ Transactions are categorized automatically via a rules engine with an OpenRouter
 
 ## Plaid setup
 
-Holo requests two Plaid products when linking an account:
+Holo requests three Plaid products when linking an account:
 
 | Product | What it's used for |
 |---|---|
 | **Transactions** | Fetches and syncs transaction history |
 | **Liabilities** | Fetches credit card balances, statements, minimum payments, and due dates |
+| **Investments** | Fetches investment account holdings |
 
 ### Sandbox
 
@@ -51,11 +52,12 @@ Holo requests two Plaid products when linking an account:
 
 Production access requires Plaid to review and approve your application:
 
-1. In the Plaid dashboard go to **Team Settings → Products** and request access to **Transactions** and **Liabilities**
+1. In the Plaid dashboard go to **Team Settings → Products** and request access to **Transactions**, **Liabilities**, and **Investments**
 2. Submit the application — describe it as a personal self-hosted finance tracker for your own accounts
 3. Once approved, copy your **Production** `client_id` and `secret` from **Team Settings → Keys**
 4. Set `PLAID_ENV=production` in your `.env`
-5. Re-link your accounts through the app — sandbox tokens do not carry over to production
+5. For OAuth-based institutions (some major banks), add your domain to **API → Allowed redirect URIs** — the URI should be `https://yourdomain.com/connect`
+6. Re-link your accounts through the app — sandbox tokens do not carry over to production
 
 ## OpenRouter setup
 
