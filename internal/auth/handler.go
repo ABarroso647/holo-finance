@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"holo/internal/components"
 	db "holo/internal/db/generated"
@@ -28,21 +29,31 @@ type Handler struct {
 	store   sessions.Store
 }
 
-// WEBAUTHN_RPID defaults to "localhost", WEBAUTHN_RPORIGIN defaults to "http://localhost:8080".
-func New(queries *db.Queries, store sessions.Store) (*Handler, error) {
+// WEBAUTHN_RPID defaults to "localhost".
+// WEBAUTHN_RPORIGINS is a comma-separated list of allowed origins; use {port} as a placeholder for
+// the app port. Defaults to "http://localhost:{port}".
+func New(queries *db.Queries, store sessions.Store, port string) (*Handler, error) {
 	rpid := os.Getenv("WEBAUTHN_RPID")
 	if rpid == "" {
 		rpid = "localhost"
 	}
-	rporigin := os.Getenv("WEBAUTHN_RPORIGIN")
-	if rporigin == "" {
-		rporigin = "http://localhost:8080"
+	var rporigins []string
+	if raw := os.Getenv("WEBAUTHN_RPORIGINS"); raw != "" {
+		raw = strings.ReplaceAll(raw, "{port}", port)
+		for _, o := range strings.Split(raw, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				rporigins = append(rporigins, o)
+			}
+		}
+	}
+	if len(rporigins) == 0 {
+		rporigins = []string{"http://localhost:" + port}
 	}
 
 	w, err := webauthn.New(&webauthn.Config{
 		RPDisplayName: "Holo",
 		RPID:          rpid,
-		RPOrigins:     []string{rporigin},
+		RPOrigins:     rporigins,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("webauthn init: %w", err)
