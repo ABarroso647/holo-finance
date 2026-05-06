@@ -73,7 +73,7 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 	accounts, _ := h.queries.ListAccountsWithInstitution(ctx)
 
-	catsJSON := buildDashCatsJSON(topCats)
+	catsJSON := buildDashCatsJSON(topCats, monthStart, monthEnd)
 
 	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth).Render(ctx, w)
 }
@@ -100,9 +100,9 @@ func buildMonthlyFlowsJSON(flows []db.GetMonthlyFlowsRow) string {
 	return string(b)
 }
 
-func buildDashCatsJSON(cats []db.GetSpendingByCategoryRow) string {
+func buildDashCatsJSON(cats []db.GetSpendingByCategoryRow, dateFrom, dateTo string) string {
 	if len(cats) == 0 {
-		return `{"labels":[],"values":[],"colors":[]}`
+		return `{"labels":[],"values":[],"colors":[],"ids":[],"date_from":"","date_to":""}`
 	}
 	if len(cats) > 8 {
 		cats = cats[:8]
@@ -110,15 +110,20 @@ func buildDashCatsJSON(cats []db.GetSpendingByCategoryRow) string {
 	labels := make([]string, len(cats))
 	values := make([]float64, len(cats))
 	colors := make([]string, len(cats))
+	ids := make([]string, len(cats))
 	for i, c := range cats {
 		labels[i] = c.CategoryName
 		values[i] = c.Total
 		colors[i] = c.CategoryColor
+		ids[i] = c.CategoryID
 	}
 	lb, _ := json.Marshal(labels)
 	vb, _ := json.Marshal(values)
 	cb, _ := json.Marshal(colors)
-	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s}`, lb, vb, cb)
+	ib, _ := json.Marshal(ids)
+	dfb, _ := json.Marshal(dateFrom)
+	dtb, _ := json.Marshal(dateTo)
+	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s,"ids":%s,"date_from":%s,"date_to":%s}`, lb, vb, cb, ib, dfb, dtb)
 }
 
 func toFloat64(v interface{}) float64 {

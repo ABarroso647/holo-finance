@@ -84,7 +84,9 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 						(function() {
 							try {
 								const data = JSON.parse(document.getElementById('dash-cats-data').dataset.cats);
-								new Chart(document.getElementById('dash-cats-chart'), {
+								const canvas = document.getElementById('dash-cats-chart');
+								canvas.style.cursor = 'pointer';
+								new Chart(canvas, {
 									type: 'bar',
 									data: {
 										labels: data.labels,
@@ -110,6 +112,14 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 												grid: { display: false },
 												ticks: { color: '#e2e8f0', font: { size: 11 } }
 											}
+										},
+										onClick: (_, elements) => {
+											if (!elements.length) return;
+											const idx = elements[0].index;
+											const id = data.ids[idx];
+											const from = data.date_from;
+											const to = data.date_to;
+											if (id) window.location.href = '/transactions?category_id=' + encodeURIComponent(id) + '&date_from=' + from + '&date_to=' + to;
 										}
 									}
 								});

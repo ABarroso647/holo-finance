@@ -323,7 +323,7 @@ func DashboardPage(netWorth float64, spending float64, income float64, salary fl
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" id=\"dash-cats-data\"></div><div style=\"position:relative;height:220px\"><canvas id=\"dash-cats-chart\"></canvas></div><script>\n\t\t\t\t\t\t(function() {\n\t\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\t\tconst data = JSON.parse(document.getElementById('dash-cats-data').dataset.cats);\n\t\t\t\t\t\t\t\tnew Chart(document.getElementById('dash-cats-chart'), {\n\t\t\t\t\t\t\t\t\ttype: 'bar',\n\t\t\t\t\t\t\t\t\tdata: {\n\t\t\t\t\t\t\t\t\t\tlabels: data.labels,\n\t\t\t\t\t\t\t\t\t\tdatasets: [{\n\t\t\t\t\t\t\t\t\t\t\tdata: data.values,\n\t\t\t\t\t\t\t\t\t\t\tbackgroundColor: data.colors.map(c => c + '33'),\n\t\t\t\t\t\t\t\t\t\t\tborderColor: data.colors,\n\t\t\t\t\t\t\t\t\t\t\tborderWidth: 1,\n\t\t\t\t\t\t\t\t\t\t\tborderRadius: 3,\n\t\t\t\t\t\t\t\t\t\t}]\n\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\toptions: {\n\t\t\t\t\t\t\t\t\t\tindexAxis: 'y',\n\t\t\t\t\t\t\t\t\t\tresponsive: true,\n\t\t\t\t\t\t\t\t\t\tmaintainAspectRatio: false,\n\t\t\t\t\t\t\t\t\t\tplugins: { legend: { display: false } },\n\t\t\t\t\t\t\t\t\t\tscales: {\n\t\t\t\t\t\t\t\t\t\t\tx: {\n\t\t\t\t\t\t\t\t\t\t\t\tgrid: { color: 'rgba(255,255,255,0.04)' },\n\t\t\t\t\t\t\t\t\t\t\t\tticks: { color: '#64748b', font: { size: 11 }, callback: v => '$' + v.toFixed(0) }\n\t\t\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\t\t\ty: {\n\t\t\t\t\t\t\t\t\t\t\t\tgrid: { display: false },\n\t\t\t\t\t\t\t\t\t\t\t\tticks: { color: '#e2e8f0', font: { size: 11 } }\n\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t});\n\t\t\t\t\t\t\t} catch(e) {\n\t\t\t\t\t\t\t\tdocument.getElementById('dash-cats-chart').insertAdjacentHTML('afterend', '<p style=\"color:var(--red);font-size:0.75rem\">Chart error: ' + e.message + '</p>');\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})();\n\t\t\t\t\t</script>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" id=\"dash-cats-data\"></div><div style=\"position:relative;height:220px\"><canvas id=\"dash-cats-chart\"></canvas></div><script>\n\t\t\t\t\t\t(function() {\n\t\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\t\tconst data = JSON.parse(document.getElementById('dash-cats-data').dataset.cats);\n\t\t\t\t\t\t\t\tconst canvas = document.getElementById('dash-cats-chart');\n\t\t\t\t\t\t\t\tcanvas.style.cursor = 'pointer';\n\t\t\t\t\t\t\t\tnew Chart(canvas, {\n\t\t\t\t\t\t\t\t\ttype: 'bar',\n\t\t\t\t\t\t\t\t\tdata: {\n\t\t\t\t\t\t\t\t\t\tlabels: data.labels,\n\t\t\t\t\t\t\t\t\t\tdatasets: [{\n\t\t\t\t\t\t\t\t\t\t\tdata: data.values,\n\t\t\t\t\t\t\t\t\t\t\tbackgroundColor: data.colors.map(c => c + '33'),\n\t\t\t\t\t\t\t\t\t\t\tborderColor: data.colors,\n\t\t\t\t\t\t\t\t\t\t\tborderWidth: 1,\n\t\t\t\t\t\t\t\t\t\t\tborderRadius: 3,\n\t\t\t\t\t\t\t\t\t\t}]\n\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\toptions: {\n\t\t\t\t\t\t\t\t\t\tindexAxis: 'y',\n\t\t\t\t\t\t\t\t\t\tresponsive: true,\n\t\t\t\t\t\t\t\t\t\tmaintainAspectRatio: false,\n\t\t\t\t\t\t\t\t\t\tplugins: { legend: { display: false } },\n\t\t\t\t\t\t\t\t\t\tscales: {\n\t\t\t\t\t\t\t\t\t\t\tx: {\n\t\t\t\t\t\t\t\t\t\t\t\tgrid: { color: 'rgba(255,255,255,0.04)' },\n\t\t\t\t\t\t\t\t\t\t\t\tticks: { color: '#64748b', font: { size: 11 }, callback: v => '$' + v.toFixed(0) }\n\t\t\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\t\t\ty: {\n\t\t\t\t\t\t\t\t\t\t\t\tgrid: { display: false },\n\t\t\t\t\t\t\t\t\t\t\t\tticks: { color: '#e2e8f0', font: { size: 11 } }\n\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\t\tonClick: (_, elements) => {\n\t\t\t\t\t\t\t\t\t\t\tif (!elements.length) return;\n\t\t\t\t\t\t\t\t\t\t\tconst idx = elements[0].index;\n\t\t\t\t\t\t\t\t\t\t\tconst id = data.ids[idx];\n\t\t\t\t\t\t\t\t\t\t\tconst from = data.date_from;\n\t\t\t\t\t\t\t\t\t\t\tconst to = data.date_to;\n\t\t\t\t\t\t\t\t\t\t\tif (id) window.location.href = '/transactions?category_id=' + encodeURIComponent(id) + '&date_from=' + from + '&date_to=' + to;\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t});\n\t\t\t\t\t\t\t} catch(e) {\n\t\t\t\t\t\t\t\tdocument.getElementById('dash-cats-chart').insertAdjacentHTML('afterend', '<p style=\"color:var(--red);font-size:0.75rem\">Chart error: ' + e.message + '</p>');\n\t\t\t\t\t\t\t}\n\t\t\t\t\t\t})();\n\t\t\t\t\t</script>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -335,7 +335,7 @@ func DashboardPage(netWorth float64, spending float64, income float64, salary fl
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(monthlyJSON)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 125, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 135, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -383,7 +383,7 @@ func DashboardPage(netWorth float64, spending float64, income float64, salary fl
 					var templ_7745c5c3_Var18 string
 					templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(a.InstitutionName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 188, Col: 107}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 198, Col: 107}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 					if templ_7745c5c3_Err != nil {
@@ -396,7 +396,7 @@ func DashboardPage(netWorth float64, spending float64, income float64, salary fl
 					var templ_7745c5c3_Var19 string
 					templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(coalescePtr(a.DisplayName, a.Name))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 189, Col: 74}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 199, Col: 74}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 					if templ_7745c5c3_Err != nil {
@@ -414,7 +414,7 @@ func DashboardPage(netWorth float64, spending float64, income float64, salary fl
 						var templ_7745c5c3_Var20 string
 						templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("color:%s", balanceColor(*a.CurrentBalance, a.Type == "credit" || a.Type == "loan")))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 192, Col: 121}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 202, Col: 121}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 						if templ_7745c5c3_Err != nil {
@@ -427,7 +427,7 @@ func DashboardPage(netWorth float64, spending float64, income float64, salary fl
 						var templ_7745c5c3_Var21 string
 						templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", *a.CurrentBalance))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 193, Col: 53}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 203, Col: 53}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
 						if templ_7745c5c3_Err != nil {
@@ -502,7 +502,7 @@ func dashTxnRow(txn db.ListTransactionsRow) templ.Component {
 		var templ_7745c5c3_Var23 string
 		templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(txn.Date[5:])
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 221, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 231, Col: 97}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 		if templ_7745c5c3_Err != nil {
@@ -515,7 +515,7 @@ func dashTxnRow(txn db.ListTransactionsRow) templ.Component {
 		var templ_7745c5c3_Var24 string
 		templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(txn.Name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 222, Col: 115}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 232, Col: 115}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 		if templ_7745c5c3_Err != nil {
@@ -533,7 +533,7 @@ func dashTxnRow(txn db.ListTransactionsRow) templ.Component {
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("width:6px;height:6px;border-radius:50%%;background:%s;flex-shrink:0", txnCategoryColor(txn)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 226, Col: 124}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 236, Col: 124}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 			if templ_7745c5c3_Err != nil {
@@ -546,7 +546,7 @@ func dashTxnRow(txn db.ListTransactionsRow) templ.Component {
 			var templ_7745c5c3_Var26 string
 			templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(*txn.CategoryName)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 227, Col: 24}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `dashboard.templ`, Line: 237, Col: 24}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 			if templ_7745c5c3_Err != nil {

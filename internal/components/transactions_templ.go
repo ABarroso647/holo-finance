@@ -133,7 +133,7 @@ func TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, a
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			for _, c := range categories {
+			for _, c := range DedupeCategories(categories) {
 				if c.ParentID == nil {
 					if filters.CategoryID == c.ID {
 						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "<option value=\"")
@@ -633,7 +633,7 @@ func TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags [
 			return templ_7745c5c3_Err
 		}
 		if txn.IsRecurring == 1 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<span style=\"margin-left:0.4rem;font-size:0.65rem;color:var(--accent);opacity:0.8\" title=\"Recurring\">↻</span> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<span class=\"badge\" style=\"margin-left:0.4rem;background:#1e2d4a;color:#60a5fa;font-size:0.65rem\">↻ recurring</span> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

@@ -316,7 +316,7 @@ func settingsCategories(categories []db.Category) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, cat := range categories {
+		for _, cat := range DedupeCategories(categories) {
 			if cat.ParentID == nil {
 				templ_7745c5c3_Err = CategorySettingsRow(cat).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
@@ -1147,7 +1147,7 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, cat := range categories {
+		for _, cat := range DedupeCategories(categories) {
 			if cat.ParentID == nil {
 				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<option value=\"")
 				if templ_7745c5c3_Err != nil {
