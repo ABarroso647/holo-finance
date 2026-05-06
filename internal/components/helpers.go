@@ -148,6 +148,19 @@ type TxnSummary struct {
 	Count    int64
 }
 
+// DedupeCategories returns categories with duplicate names removed (first wins).
+func DedupeCategories(cats []db.Category) []db.Category {
+	seen := make(map[string]bool, len(cats))
+	out := make([]db.Category, 0, len(cats))
+	for _, c := range cats {
+		if !seen[c.Name] {
+			seen[c.Name] = true
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // SpendingRange is a quick-select time range for the spending page.
 type SpendingRange struct {
 	Label string

@@ -86,7 +86,7 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 				hx-trigger="change"
 			>
 				<option value="">All categories</option>
-				for _, c := range categories {
+				for _, c := range DedupeCategories(categories) {
 					if c.ParentID == nil {
 						if filters.CategoryID == c.ID {
 							<option value={ c.ID } selected>{ c.Name }</option>
@@ -283,7 +283,7 @@ templ TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags 
 		<td>
 			<span style="font-size:0.875rem">{ txn.Name }</span>
 			if txn.IsRecurring == 1 {
-				<span style="margin-left:0.4rem;font-size:0.65rem;color:var(--accent);opacity:0.8" title="Recurring">↻</span>
+				<span class="badge" style="margin-left:0.4rem;background:#1e2d4a;color:#60a5fa;font-size:0.65rem">↻ recurring</span>
 			}
 			if txn.Pending == 1 {
 				<span class="badge pending" style="margin-left:0.4rem;font-size:0.65rem">pending</span>

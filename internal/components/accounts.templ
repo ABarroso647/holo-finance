@@ -58,9 +58,14 @@ templ AccountsPage(accounts []db.ListAccountsWithInstitutionRow) {
 					});
 					if (!res.ok) { result.textContent = 'Error: ' + await res.text(); btn.disabled = false; return; }
 					const data = await res.json();
+					// Store so OAuth popup returning to /connect can resume this relink flow
+					localStorage.setItem('plaid_relink_token', data.link_token);
+					localStorage.setItem('plaid_relink_institution_id', institutionID);
 					const handler = Plaid.create({
 						token: data.link_token,
 						onSuccess: async function() {
+							localStorage.removeItem('plaid_relink_token');
+							localStorage.removeItem('plaid_relink_institution_id');
 							result.textContent = 'Syncing…';
 							const r2 = await fetch('/api/plaid/relink-complete', {
 								method: 'POST',
@@ -71,6 +76,8 @@ templ AccountsPage(accounts []db.ListAccountsWithInstitutionRow) {
 							btn.disabled = false;
 						},
 						onExit: function() {
+							localStorage.removeItem('plaid_relink_token');
+							localStorage.removeItem('plaid_relink_institution_id');
 							result.textContent = '';
 							btn.disabled = false;
 						}

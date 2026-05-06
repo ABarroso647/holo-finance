@@ -20,10 +20,38 @@ templ ConnectPage() {
 					btn.textContent = 'Loading…';
 				}
 
+				// Check if this OAuth return is for a relink flow (initiated from accounts page)
+				const relinkToken = localStorage.getItem('plaid_relink_token');
+				const relinkInstID = localStorage.getItem('plaid_relink_institution_id');
+				if (receivedRedirectUri && relinkToken && relinkInstID) {
+					const config = {
+						token: relinkToken,
+						receivedRedirectUri: receivedRedirectUri,
+						onSuccess: async () => {
+							localStorage.removeItem('plaid_relink_token');
+							localStorage.removeItem('plaid_relink_institution_id');
+							document.body.innerHTML = '<div style="padding:2rem;color:var(--text)">Syncing… please wait.</div>';
+							await fetch('/api/plaid/relink-complete', {
+								method: 'POST',
+								headers: { 'Content-Type': 'application/json' },
+								body: JSON.stringify({ institution_id: relinkInstID }),
+							});
+							window.location.href = '/accounts';
+						},
+						onExit: () => {
+							localStorage.removeItem('plaid_relink_token');
+							localStorage.removeItem('plaid_relink_institution_id');
+							window.location.href = '/accounts';
+						},
+					};
+					Plaid.create(config).open();
+					return;
+				}
+
 				let link_token;
 				if (receivedRedirectUri) {
 					// Returning from OAuth redirect — reuse the token stored before leaving
-					link_token = sessionStorage.getItem('plaid_link_token');
+					link_token = localStorage.getItem('plaid_link_token');
 					if (!link_token) {
 						if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
 						alert('Session expired — please try connecting again.');
@@ -38,13 +66,13 @@ templ ConnectPage() {
 					}
 					const data = await res.json();
 					link_token = data.link_token;
-					sessionStorage.setItem('plaid_link_token', link_token);
+					localStorage.setItem('plaid_link_token', link_token);
 				}
 
 				const config = {
 					token: link_token,
 					onSuccess: async (publicToken, metadata) => {
-						sessionStorage.removeItem('plaid_link_token');
+						localStorage.removeItem('plaid_link_token');
 						await fetch('/api/plaid/exchange-token', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
@@ -56,6 +84,7 @@ templ ConnectPage() {
 						window.location.href = '/transactions';
 					},
 					onExit: () => {
+						localStorage.removeItem('plaid_link_token');
 						if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
 					},
 				};

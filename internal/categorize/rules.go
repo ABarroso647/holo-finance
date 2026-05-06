@@ -8,7 +8,7 @@ import (
 	"holo/internal/db/generated"
 )
 
-// ApplyRules runs all rules against uncategorized transactions.
+// ApplyRules runs all rules against all non-manual transactions (plaid + uncategorized).
 // Returns the number of transactions categorized.
 func ApplyRules(ctx context.Context, queries *db.Queries) (int, error) {
 	rules, err := queries.ListRules(ctx)
@@ -19,7 +19,8 @@ func ApplyRules(ctx context.Context, queries *db.Queries) (int, error) {
 		return 0, nil
 	}
 
-	txns, err := queries.ListUncategorizedTransactions(ctx)
+	// Run against all non-manual transactions so new Plaid-categorized txns get re-categorized by rules.
+	txns, err := queries.ListNonManualTransactions(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -30,10 +31,9 @@ func ApplyRules(ctx context.Context, queries *db.Queries) (int, error) {
 		if categoryID == "" {
 			continue
 		}
-		if err := queries.UpdateTransactionCategory(ctx, db.UpdateTransactionCategoryParams{
-			CategoryID:     &categoryID,
-			CategorySource: "rule",
-			ID:             txn.ID,
+		if err := queries.UpdateTransactionCategoryBySource(ctx, db.UpdateTransactionCategoryBySourceParams{
+			CategoryID: &categoryID,
+			ID:         txn.ID,
 		}); err != nil {
 			return count, err
 		}

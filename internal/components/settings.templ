@@ -99,7 +99,7 @@ templ settingsCategories(categories []db.Category) {
 				</tr>
 			</thead>
 			<tbody>
-				for _, cat := range categories {
+				for _, cat := range DedupeCategories(categories) {
 					if cat.ParentID == nil {
 						@CategorySettingsRow(cat)
 					}
@@ -404,7 +404,7 @@ templ SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesF
 		>
 			<select name="category_id" class="filter-select" style="font-size:0.8rem">
 				<option value="">— catch-all —</option>
-				for _, cat := range categories {
+				for _, cat := range DedupeCategories(categories) {
 					if cat.ParentID == nil {
 						<option value={ cat.ID }>{ cat.Name }</option>
 					}
