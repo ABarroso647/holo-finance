@@ -58,6 +58,23 @@ WHERE id = ?;
 -- name: CountTransactions :one
 SELECT COUNT(*) FROM transactions;
 
+-- name: ResetRecurringForInstitution :exec
+UPDATE transactions SET is_recurring = 0
+WHERE account_id IN (SELECT id FROM accounts WHERE institution_id = ?);
+
+-- name: SetTransactionRecurring :exec
+UPDATE transactions SET is_recurring = 1 WHERE plaid_transaction_id = ?;
+
+-- name: ListNonManualTransactions :many
+SELECT * FROM transactions
+WHERE category_source != 'manual'
+ORDER BY date DESC;
+
+-- name: UpdateTransactionCategoryBySource :exec
+UPDATE transactions
+SET category_id = ?, category_source = 'rule', category_confidence = NULL, updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND category_source != 'manual';
+
 -- name: SearchTransactions :many
 SELECT t.*,
     COALESCE(a.display_name, a.name) as account_name,
