@@ -715,6 +715,64 @@ func (q *Queries) SetTransactionRecurring(ctx context.Context, plaidTransactionI
 	return err
 }
 
+const sumFilteredTransactions = `-- name: SumFilteredTransactions :one
+SELECT
+    CAST(COALESCE(SUM(CASE WHEN t.amount > 0
+        AND (t.category_id IS NULL
+            OR (t.category_id NOT LIKE 'TRANSFER%'
+                AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
+        THEN t.amount ELSE 0 END), 0.0) AS REAL) as spending,
+    CAST(COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND (t.category_id IS NULL
+            OR (t.category_id NOT LIKE 'TRANSFER%'
+                AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
+        THEN ABS(t.amount) ELSE 0 END), 0.0) AS REAL) as income,
+    CAST(COUNT(*) AS INTEGER) as count
+FROM transactions t
+LEFT JOIN accounts a ON t.account_id = a.id
+WHERE (?1 = '' OR LOWER(t.name) LIKE '%' || LOWER(?1) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(?1) || '%')
+AND (?2 = '' OR t.account_id = ?2)
+AND (?3 = '' OR t.category_id = ?3)
+AND (?4 = '' OR t.date >= ?4)
+AND (?5 = '' OR t.date <= ?5)
+AND (?6 = '' OR t.is_recurring = 1)
+AND (?7 = '' OR t.id IN (SELECT transaction_id FROM transaction_tags WHERE tag_id = ?7))
+`
+
+type SumFilteredTransactionsParams struct {
+	Search     interface{} `json:"search"`
+	AccountID  interface{} `json:"account_id"`
+	CategoryID interface{} `json:"category_id"`
+	DateFrom   interface{} `json:"date_from"`
+	DateTo     interface{} `json:"date_to"`
+	Recurring  interface{} `json:"recurring"`
+	TagID      interface{} `json:"tag_id"`
+}
+
+type SumFilteredTransactionsRow struct {
+	Spending float64 `json:"spending"`
+	Income   float64 `json:"income"`
+	Count    int64   `json:"count"`
+}
+
+// Returns spending total, income total, and count for the same filter set as SearchTransactions.
+// Spending = positive non-transfer amounts. Income = negative depository amounts (non-transfer).
+func (q *Queries) SumFilteredTransactions(ctx context.Context, arg SumFilteredTransactionsParams) (SumFilteredTransactionsRow, error) {
+	row := q.db.QueryRowContext(ctx, sumFilteredTransactions,
+		arg.Search,
+		arg.AccountID,
+		arg.CategoryID,
+		arg.DateFrom,
+		arg.DateTo,
+		arg.Recurring,
+		arg.TagID,
+	)
+	var i SumFilteredTransactionsRow
+	err := row.Scan(&i.Spending, &i.Income, &i.Count)
+	return i, err
+}
+
 const updateTransactionCategory = `-- name: UpdateTransactionCategory :exec
 UPDATE transactions
 SET category_id = ?, category_source = ?, category_confidence = NULL, updated_at = CURRENT_TIMESTAMP

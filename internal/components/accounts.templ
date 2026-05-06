@@ -45,6 +45,43 @@ templ AccountsPage(accounts []db.ListAccountsWithInstitutionRow) {
 					}
 				}
 			}
+			async function relinkInstitution(institutionID) {
+				const btn = document.getElementById('relink-btn-' + institutionID);
+				const result = document.getElementById('relink-result-' + institutionID);
+				btn.disabled = true;
+				result.textContent = 'Loading…';
+				try {
+					const res = await fetch('/api/plaid/relink-token', {
+						method: 'POST',
+						headers: {'Content-Type': 'application/json'},
+						body: JSON.stringify({institution_id: institutionID})
+					});
+					if (!res.ok) { result.textContent = 'Error: ' + await res.text(); btn.disabled = false; return; }
+					const data = await res.json();
+					const handler = Plaid.create({
+						token: data.link_token,
+						onSuccess: async function() {
+							result.textContent = 'Syncing…';
+							const r2 = await fetch('/api/plaid/relink-complete', {
+								method: 'POST',
+								headers: {'Content-Type': 'application/json'},
+								body: JSON.stringify({institution_id: institutionID})
+							});
+							result.innerHTML = await r2.text();
+							btn.disabled = false;
+						},
+						onExit: function() {
+							result.textContent = '';
+							btn.disabled = false;
+						}
+					});
+					result.textContent = '';
+					handler.open();
+				} catch(e) {
+					result.textContent = 'Error: ' + e.message;
+					btn.disabled = false;
+				}
+			}
 		</script>
 	}
 }
@@ -53,8 +90,19 @@ templ accountsGrouped(accounts []db.ListAccountsWithInstitutionRow) {
 	{{ groups := groupAccountsByInstitution(accounts) }}
 	{{ order := institutionOrder(accounts) }}
 	for _, inst := range order {
+		{{ instID := groups[inst][0].InstitutionID }}
 		<div style="margin-bottom:1.5rem">
-			<h2 style="margin-bottom:0.5rem">{ inst }</h2>
+			<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
+				<h2 style="margin:0">{ inst }</h2>
+				<button
+					type="button"
+					class="btn btn-ghost"
+					style="font-size:0.75rem;padding:0.2rem 0.6rem"
+					onclick={ templ.JSFuncCall("relinkInstitution", instID) }
+					id={ fmt.Sprintf("relink-btn-%s", instID) }
+				>Re-link</button>
+				<span id={ fmt.Sprintf("relink-result-%s", instID) } style="font-size:0.75rem"></span>
+			</div>
 			<div class="card" style="padding:0">
 				<table>
 					<thead>

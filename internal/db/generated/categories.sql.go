@@ -103,9 +103,10 @@ const upsertCategory = `-- name: UpsertCategory :one
 INSERT INTO categories (id, name, parent_id, color, icon)
 VALUES (?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
-    name  = excluded.name,
-    color = excluded.color,
-    icon  = excluded.icon
+    name      = excluded.name,
+    parent_id = excluded.parent_id,
+    color     = excluded.color,
+    icon      = excluded.icon
 RETURNING id, name, parent_id, color, icon
 `
 

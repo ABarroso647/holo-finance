@@ -10,14 +10,49 @@ import (
 	"holo/internal/db/generated"
 )
 
-// DefaultCategories are seeded on startup for manual/rule/LLM categorization.
-// Plaid-sourced categories are created dynamically via EnsurePlaidCategory.
-var DefaultCategories = []db.UpsertCategoryParams{
-	{ID: "cat_other", Name: "Other", Color: strPtr("#64748b")},
+// parentCategories are the top-level categories seeded on every startup.
+// Plaid sub-categories are created dynamically via EnsurePlaidCategory and
+// linked to these parents.
+var parentCategories = []db.UpsertCategoryParams{
+	{ID: "cat_food", Name: "Food & Drink", Color: strPtr("#f97316")},
+	{ID: "cat_shopping", Name: "Shopping", Color: strPtr("#ec4899")},
+	{ID: "cat_transport", Name: "Transportation", Color: strPtr("#3b82f6")},
+	{ID: "cat_health", Name: "Health & Medical", Color: strPtr("#22c55e")},
+	{ID: "cat_entertainment", Name: "Entertainment", Color: strPtr("#8b5cf6")},
+	{ID: "cat_housing", Name: "Housing & Utilities", Color: strPtr("#06b6d4")},
+	{ID: "cat_personal", Name: "Personal Care", Color: strPtr("#f59e0b")},
+	{ID: "cat_finance", Name: "Finance & Fees", Color: strPtr("#64748b")},
+	{ID: "cat_education", Name: "Education", Color: strPtr("#14b8a6")},
+	{ID: "cat_travel", Name: "Travel", Color: strPtr("#0ea5e9")},
+	{ID: "cat_other", Name: "Other", Color: strPtr("#94a3b8")},
+}
+
+// plaidPrimaryToParent maps Plaid primary category strings to our parent IDs.
+var plaidPrimaryToParent = map[string]string{
+	"FOOD_AND_DRINK":      "cat_food",
+	"GENERAL_MERCHANDISE": "cat_shopping",
+	"TRANSPORTATION":      "cat_transport",
+	"MEDICAL":             "cat_health",
+	"ENTERTAINMENT":       "cat_entertainment",
+	"HOME_IMPROVEMENT":    "cat_housing",
+	"RENT_AND_UTILITIES":  "cat_housing",
+	"PERSONAL_CARE":       "cat_personal",
+	"BANK_FEES":           "cat_finance",
+	"LOAN_PAYMENTS":       "cat_finance",
+	"EDUCATION":           "cat_education",
+	"TRAVEL":              "cat_travel",
+}
+
+// plaidParent returns the parent category ID for a Plaid primary category string.
+func plaidParent(primary string) string {
+	if id, ok := plaidPrimaryToParent[primary]; ok {
+		return id
+	}
+	return "cat_other"
 }
 
 func SeedCategories(ctx context.Context, queries *db.Queries) error {
-	for _, cat := range DefaultCategories {
+	for _, cat := range parentCategories {
 		if _, err := queries.UpsertCategory(ctx, cat); err != nil {
 			return err
 		}
@@ -39,11 +74,13 @@ func EnsurePlaidCategory(ctx context.Context, queries *db.Queries, detailed, pri
 
 	name := prettifyPlaidCategory(detailed, primary)
 	color := hashColor(id)
+	parentID := plaidParent(primary)
 
 	if _, err := queries.UpsertCategory(ctx, db.UpsertCategoryParams{
-		ID:    id,
-		Name:  name,
-		Color: &color,
+		ID:       id,
+		Name:     name,
+		Color:    &color,
+		ParentID: &parentID,
 	}); err != nil {
 		return "", err
 	}

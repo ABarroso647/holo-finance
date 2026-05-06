@@ -47,23 +47,26 @@ GROUP BY strftime('%Y-%m', t.date)
 ORDER BY month ASC;
 
 -- name: GetMonthlySpendingByCategory :many
--- Returns spending per category per month for the last N months, for stacked trend chart
+-- Returns spending per parent category per month for stacked trend chart.
 SELECT
     strftime('%Y-%m', t.date) as month,
-    COALESCE(t.category_id, 'uncategorized') as category_id,
-    COALESCE(c.name, 'Uncategorized') as category_name,
-    COALESCE(c.color, '#64748b') as category_color,
-    CAST(SUM(t.amount) AS REAL) as total
+    COALESCE(p.id, c.id, 'uncategorized') as category_id,
+    COALESCE(p.name, c.name, 'Uncategorized') as category_name,
+    COALESCE(p.color, c.color, '#64748b') as category_color,
+    CAST(SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END) -
+         SUM(CASE WHEN t.amount < 0 THEN ABS(t.amount) ELSE 0 END)
+         AS REAL) as total
 FROM transactions t
 LEFT JOIN categories c ON t.category_id = c.id
-WHERE t.amount > 0
-    AND t.pending = 0
+LEFT JOIN categories p ON c.parent_id = p.id
+WHERE t.pending = 0
     AND t.date >= ?
     AND (t.category_id IS NULL
         OR (t.category_id NOT LIKE 'TRANSFER%'
             AND t.category_id NOT LIKE 'INCOME%'
             AND t.category_id NOT IN ('cat_transfer', 'cat_income', 'cat_investment', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
-GROUP BY month, t.category_id
+GROUP BY month, COALESCE(c.parent_id, c.id, 'uncategorized')
+HAVING total > 0
 ORDER BY month ASC, total DESC;
 
 -- name: GetAccountSpendSince :one
@@ -98,23 +101,41 @@ LIMIT 5;
 
 -- name: GetSpendingByCategory :many
 -- params: start_date, end_date as YYYY-MM-DD strings
+-- Groups by parent category when present, deduping sub-categories.
+-- Subtracts refunds (negative amounts) from spending. Excludes net-credit groups.
 SELECT
-    COALESCE(t.category_id, 'uncategorized') as category_id,
-    COALESCE(c.name, 'Uncategorized') as category_name,
-    COALESCE(c.color, '#64748b') as category_color,
-    CAST(SUM(t.amount) AS REAL) as total
+    COALESCE(p.id, c.id, 'uncategorized') as category_id,
+    COALESCE(p.name, c.name, 'Uncategorized') as category_name,
+    COALESCE(p.color, c.color, '#64748b') as category_color,
+    CAST(SUM(CASE WHEN t.amount > 0 THEN t.amount ELSE 0 END) -
+         SUM(CASE WHEN t.amount < 0 THEN ABS(t.amount) ELSE 0 END)
+         AS REAL) as total
 FROM transactions t
 LEFT JOIN categories c ON t.category_id = c.id
-WHERE t.amount > 0
-    AND t.pending = 0
+LEFT JOIN categories p ON c.parent_id = p.id
+WHERE t.pending = 0
     AND t.date >= ?
     AND t.date <= ?
     AND (t.category_id IS NULL
         OR (t.category_id NOT LIKE 'TRANSFER%'
             AND t.category_id NOT LIKE 'INCOME%'
             AND t.category_id NOT IN ('cat_transfer', 'cat_income', 'cat_investment', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
-GROUP BY t.category_id
+GROUP BY COALESCE(c.parent_id, c.id, 'uncategorized')
+HAVING total > 0
 ORDER BY total DESC;
+
+-- name: GetRecurringSpendForPeriod :one
+-- Sum of positive recurring transactions (non-transfer) for a date range.
+SELECT CAST(COALESCE(SUM(t.amount), 0.0) AS REAL) as total
+FROM transactions t
+WHERE t.is_recurring = 1
+  AND t.amount > 0
+  AND t.pending = 0
+  AND t.date >= ?
+  AND t.date <= ?
+  AND (t.category_id IS NULL
+      OR (t.category_id NOT LIKE 'TRANSFER%'
+          AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')));
 
 -- name: GetSpendByTag :many
 SELECT

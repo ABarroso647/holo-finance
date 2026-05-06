@@ -39,6 +39,7 @@ func (h *TransactionHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	txns, total := h.runSearch(r, filters, limit, offset)
+	summary := h.runSummary(r, filters)
 
 	categories, _ := h.queries.ListCategories(r.Context())
 	accounts, _ := h.queries.ListAccounts(r.Context())
@@ -53,11 +54,34 @@ func (h *TransactionHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
-		components.TxnTableContent(txns, categories, tagMap, allTags, int(total), page, limit, filters).Render(r.Context(), w)
+		components.TxnTableContent(txns, categories, tagMap, allTags, int(total), page, limit, filters, summary).Render(r.Context(), w)
 		return
 	}
 
-	components.TransactionsPage(txns, categories, accounts, allTags, tagMap, int(total), page, limit, filters).Render(r.Context(), w)
+	components.TransactionsPage(txns, categories, accounts, allTags, tagMap, int(total), page, limit, filters, summary).Render(r.Context(), w)
+}
+
+func (h *TransactionHandler) runSummary(r *http.Request, f components.TxnFilters) *components.TxnSummary {
+	if !f.IsActive() {
+		return nil
+	}
+	row, err := h.queries.SumFilteredTransactions(r.Context(), db.SumFilteredTransactionsParams{
+		Search:     f.Search,
+		AccountID:  f.AccountID,
+		CategoryID: f.CategoryID,
+		TagID:      f.TagID,
+		DateFrom:   f.DateFrom,
+		DateTo:     f.DateTo,
+		Recurring:  f.Recurring,
+	})
+	if err != nil {
+		return nil
+	}
+	return &components.TxnSummary{
+		Spending: row.Spending,
+		Income:   row.Income,
+		Count:    row.Count,
+	}
 }
 
 func (h *TransactionHandler) runSearch(r *http.Request, f components.TxnFilters, limit, offset int64) ([]db.ListTransactionsRow, int64) {

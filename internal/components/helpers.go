@@ -141,6 +141,13 @@ func (f TxnFilters) QueryString() string {
 	return v.Encode()
 }
 
+// TxnSummary holds spending/income totals and count for filtered transactions.
+type TxnSummary struct {
+	Spending float64
+	Income   float64
+	Count    int64
+}
+
 // SpendingRange is a quick-select time range for the spending page.
 type SpendingRange struct {
 	Label string

@@ -208,9 +208,9 @@ func (h *PlaidHandler) SyncLiabilities(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if failed > 0 && synced == 0 {
-		fmt.Fprintf(w, `<span style="color:var(--yellow);font-size:0.8rem" title="%s">⚠ Liabilities not available — still under review by Plaid</span>`, firstErr)
+		fmt.Fprintf(w, `<span style="color:var(--yellow);font-size:0.8rem" title="%s">⚠ Some accounts don't support liabilities — try re-linking</span>`, firstErr)
 	} else if failed > 0 {
-		fmt.Fprintf(w, `<span style="color:var(--yellow);font-size:0.8rem">✓ Synced %d, %d failed (Liabilities pending approval)</span>`, synced, failed)
+		fmt.Fprintf(w, `<span style="color:var(--yellow);font-size:0.8rem">✓ Synced %d, %d accounts don't support liabilities</span>`, synced, failed)
 	} else {
 		fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">✓ Payment data synced (%d institutions)</span>`, synced)
 	}
@@ -285,6 +285,93 @@ func (h *PlaidHandler) Webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+// RelinkToken creates a Plaid update-mode link token for an existing institution.
+// The frontend reuses this token to re-authenticate without creating a new institution.
+func (h *PlaidHandler) RelinkToken(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		InstitutionID string `json:"institution_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.InstitutionID == "" {
+		http.Error(w, "institution_id required", http.StatusBadRequest)
+		return
+	}
+
+	inst, err := h.queries.GetInstitutionByID(r.Context(), body.InstitutionID)
+	if err != nil {
+		http.Error(w, "institution not found", http.StatusNotFound)
+		return
+	}
+
+	accessToken, err := crypto.Decrypt(h.encKey, inst.PlaidAccessToken)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("decrypt token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	user := plaid.NewLinkTokenCreateRequestUser("holo-user")
+	req := plaid.NewLinkTokenCreateRequest("Holo", "en", []plaid.CountryCode{plaid.COUNTRYCODE_CA}, *user)
+	req.SetAccessToken(accessToken)
+	req.SetOptionalProducts([]plaid.Products{
+		plaid.PRODUCTS_LIABILITIES,
+		plaid.PRODUCTS_INVESTMENTS,
+	})
+
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		scheme = "http"
+	}
+	req.SetRedirectUri(scheme + "://" + r.Host + "/connect")
+
+	resp, _, err := h.api.PlaidApi.LinkTokenCreate(r.Context()).LinkTokenCreateRequest(*req).Execute()
+	if err != nil {
+		msg := fmt.Sprintf("create relink token: %v", err)
+		if plaidErr, ok := err.(plaid.GenericOpenAPIError); ok {
+			msg = fmt.Sprintf("create relink token: %s", string(plaidErr.Body()))
+		}
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
+
+	writeJSON(w, map[string]string{"link_token": resp.GetLinkToken()})
+}
+
+// RelinkComplete re-syncs an institution after Plaid update-mode re-authentication.
+// No token exchange needed — the access token is unchanged.
+func (h *PlaidHandler) RelinkComplete(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		InstitutionID string `json:"institution_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.InstitutionID == "" {
+		http.Error(w, "institution_id required", http.StatusBadRequest)
+		return
+	}
+
+	inst, err := h.queries.GetInstitutionByID(r.Context(), body.InstitutionID)
+	if err != nil {
+		http.Error(w, "institution not found", http.StatusNotFound)
+		return
+	}
+
+	token, err := crypto.Decrypt(h.encKey, inst.PlaidAccessToken)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("decrypt token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := plaidclient.SyncTransactions(r.Context(), h.api, h.queries, inst.PlaidItemID, token); err != nil {
+		log.Printf("relink sync transactions for %s: %v", inst.Name, err)
+	}
+	if err := plaidclient.SyncLiabilities(r.Context(), h.api, h.queries, token); err != nil {
+		log.Printf("relink sync liabilities for %s: %v", inst.Name, err)
+	}
+	if err := plaidclient.SyncRecurring(r.Context(), h.api, h.queries, inst.ID, token); err != nil {
+		log.Printf("relink sync recurring for %s: %v", inst.Name, err)
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">✓ Re-linked and synced</span>`)
 }
 
 // deduplicates retried webhooks via SHA-256 hash as ID (INSERT OR IGNORE).
