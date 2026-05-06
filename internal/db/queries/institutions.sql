@@ -18,3 +18,12 @@ SELECT * FROM institutions WHERE id = ?;
 
 -- name: UpdateInstitutionToken :exec
 UPDATE institutions SET plaid_access_token = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?;
+
+-- name: DeleteInstitution :exec
+DELETE FROM institutions WHERE id = ?;
+
+-- name: DeleteAccountsByInstitution :exec
+DELETE FROM accounts WHERE institution_id = ?;
+
+-- name: DeleteTransactionsByInstitution :exec
+DELETE FROM transactions WHERE account_id IN (SELECT id FROM accounts WHERE institution_id = ?);

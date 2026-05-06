@@ -29,6 +29,7 @@ templ AccountsPage(accounts []db.ListAccountsWithInstitutionRow) {
 		} else {
 			@accountsGrouped(accounts)
 		}
+		<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 		<script>
 			function toggleAcct(id, row) {
 				const detailRow = document.getElementById('acct-detail-' + id);
@@ -43,6 +44,24 @@ templ AccountsPage(accounts []db.ListAccountsWithInstitutionRow) {
 						inner.innerHTML = '<div style="padding:1rem;color:var(--muted);font-size:0.8rem">Loading…</div>';
 						htmx.ajax('GET', '/api/accounts/' + id + '/detail', {target: inner, swap: 'innerHTML'});
 					}
+				}
+			}
+			async function disconnectInstitution(institutionID, name) {
+				if (!confirm('Remove ' + name + '? This will delete all transactions and accounts for this institution.')) return;
+				const btn = document.getElementById('disconnect-btn-' + institutionID);
+				btn.disabled = true;
+				btn.textContent = 'Removing…';
+				const res = await fetch('/api/plaid/disconnect', {
+					method: 'POST',
+					headers: {'Content-Type': 'application/json'},
+					body: JSON.stringify({institution_id: institutionID})
+				});
+				if (res.ok) {
+					document.getElementById('inst-section-' + institutionID).remove();
+				} else {
+					btn.disabled = false;
+					btn.textContent = 'Disconnect';
+					alert('Error: ' + await res.text());
 				}
 			}
 			async function relinkInstitution(institutionID) {
@@ -98,7 +117,7 @@ templ accountsGrouped(accounts []db.ListAccountsWithInstitutionRow) {
 	{{ order := institutionOrder(accounts) }}
 	for _, inst := range order {
 		{{ instID := groups[inst][0].InstitutionID }}
-		<div style="margin-bottom:1.5rem">
+		<div style="margin-bottom:1.5rem" id={ fmt.Sprintf("inst-section-%s", instID) }>
 			<div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:0.5rem">
 				<h2 style="margin:0">{ inst }</h2>
 				<button
@@ -108,6 +127,13 @@ templ accountsGrouped(accounts []db.ListAccountsWithInstitutionRow) {
 					onclick={ templ.JSFuncCall("relinkInstitution", instID) }
 					id={ fmt.Sprintf("relink-btn-%s", instID) }
 				>Re-link</button>
+				<button
+					type="button"
+					class="btn btn-ghost"
+					style="font-size:0.75rem;padding:0.2rem 0.6rem;color:var(--red);border-color:var(--red)"
+					onclick={ templ.JSFuncCall("disconnectInstitution", instID, inst) }
+					id={ fmt.Sprintf("disconnect-btn-%s", instID) }
+				>Disconnect</button>
 				<span id={ fmt.Sprintf("relink-result-%s", instID) } style="font-size:0.75rem"></span>
 			</div>
 			<div class="card" style="padding:0">

@@ -139,6 +139,7 @@ func main() {
 			r.Post("/api/plaid/sync-investments", plaidHandler.SyncInvestments)
 			r.Post("/api/plaid/relink-token", plaidHandler.RelinkToken)
 			r.Post("/api/plaid/relink-complete", plaidHandler.RelinkComplete)
+			r.Post("/api/plaid/disconnect", plaidHandler.DisconnectInstitution)
 			r.Post("/api/plaid/webhook", plaidHandler.Webhook)
 		}
 	})

@@ -9,6 +9,33 @@ import (
 	"context"
 )
 
+const deleteAccountsByInstitution = `-- name: DeleteAccountsByInstitution :exec
+DELETE FROM accounts WHERE institution_id = ?
+`
+
+func (q *Queries) DeleteAccountsByInstitution(ctx context.Context, institutionID string) error {
+	_, err := q.db.ExecContext(ctx, deleteAccountsByInstitution, institutionID)
+	return err
+}
+
+const deleteInstitution = `-- name: DeleteInstitution :exec
+DELETE FROM institutions WHERE id = ?
+`
+
+func (q *Queries) DeleteInstitution(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteInstitution, id)
+	return err
+}
+
+const deleteTransactionsByInstitution = `-- name: DeleteTransactionsByInstitution :exec
+DELETE FROM transactions WHERE account_id IN (SELECT id FROM accounts WHERE institution_id = ?)
+`
+
+func (q *Queries) DeleteTransactionsByInstitution(ctx context.Context, institutionID string) error {
+	_, err := q.db.ExecContext(ctx, deleteTransactionsByInstitution, institutionID)
+	return err
+}
+
 const getInstitutionByID = `-- name: GetInstitutionByID :one
 SELECT id, plaid_item_id, plaid_access_token, name, created_at, updated_at FROM institutions WHERE id = ?
 `
