@@ -88,7 +88,7 @@ templ AccountDisplayNameRow(a db.ListAccountsWithInstitutionRow) {
 templ settingsCategories(categories []db.Category) {
 	<div class="card">
 		<h2 style="margin-bottom:0.25rem">Categories</h2>
-		<p style="color:var(--muted);font-size:0.8rem;margin-bottom:1rem">Rename or recolor your spending categories.</p>
+		<p style="color:var(--muted);font-size:0.8rem;margin-bottom:1rem">Rename or recolor your top-level spending categories. Plaid sub-categories roll up to these automatically.</p>
 		<table>
 			<thead>
 				<tr>
@@ -100,7 +100,9 @@ templ settingsCategories(categories []db.Category) {
 			</thead>
 			<tbody>
 				for _, cat := range categories {
-					@CategorySettingsRow(cat)
+					if cat.ParentID == nil {
+						@CategorySettingsRow(cat)
+					}
 				}
 			</tbody>
 		</table>
@@ -403,7 +405,9 @@ templ SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesF
 			<select name="category_id" class="filter-select" style="font-size:0.8rem">
 				<option value="">— catch-all —</option>
 				for _, cat := range categories {
-					<option value={ cat.ID }>{ cat.Name }</option>
+					if cat.ParentID == nil {
+						<option value={ cat.ID }>{ cat.Name }</option>
+					}
 				}
 			</select>
 			<input

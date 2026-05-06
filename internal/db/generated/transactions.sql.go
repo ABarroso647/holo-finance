@@ -14,7 +14,8 @@ const countSearchTransactions = `-- name: CountSearchTransactions :one
 SELECT COUNT(*) FROM transactions t
 WHERE (?1 = '' OR LOWER(t.name) LIKE '%' || LOWER(?1) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(?1) || '%')
 AND (?2 = '' OR t.account_id = ?2)
-AND (?3 = '' OR t.category_id = ?3)
+AND (?3 = '' OR t.category_id = ?3
+     OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ?3))
 AND (?4 = '' OR t.date >= ?4)
 AND (?5 = '' OR t.date <= ?5)
 AND (?6 = '' OR t.is_recurring = 1)
@@ -606,7 +607,8 @@ LEFT JOIN institutions i ON a.institution_id = i.id
 LEFT JOIN categories c ON t.category_id = c.id
 WHERE (?1 = '' OR LOWER(t.name) LIKE '%' || LOWER(?1) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(?1) || '%')
 AND (?2 = '' OR t.account_id = ?2)
-AND (?3 = '' OR t.category_id = ?3)
+AND (?3 = '' OR t.category_id = ?3
+     OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ?3))
 AND (?4 = '' OR t.date >= ?4)
 AND (?5 = '' OR t.date <= ?5)
 AND (?6 = '' OR t.is_recurring = 1)
@@ -733,7 +735,8 @@ FROM transactions t
 LEFT JOIN accounts a ON t.account_id = a.id
 WHERE (?1 = '' OR LOWER(t.name) LIKE '%' || LOWER(?1) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(?1) || '%')
 AND (?2 = '' OR t.account_id = ?2)
-AND (?3 = '' OR t.category_id = ?3)
+AND (?3 = '' OR t.category_id = ?3
+     OR t.category_id IN (SELECT id FROM categories WHERE parent_id = ?3))
 AND (?4 = '' OR t.date >= ?4)
 AND (?5 = '' OR t.date <= ?5)
 AND (?6 = '' OR t.is_recurring = 1)
