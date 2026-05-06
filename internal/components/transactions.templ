@@ -6,7 +6,7 @@ import (
 	"holo/internal/db/generated"
 )
 
-templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, accounts []db.Account, allTags []db.Tag, tagMap map[string][]db.Tag, total, page, limit int, filters TxnFilters) {
+templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, accounts []db.Account, allTags []db.Tag, tagMap map[string][]db.Tag, total, page, limit int, filters TxnFilters, summary *TxnSummary) {
 	@Layout("Transactions") {
 		<div class="page-header">
 			<h1>Transactions</h1>
@@ -166,6 +166,49 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 				>✕ clear</a>
 			}
 		</form>
+		<div style="display:flex;gap:0.35rem;flex-wrap:wrap;margin-bottom:0.75rem">
+			<script>
+				function setTxnDateRange(from, to) {
+					var f = document.querySelector('[name="date_from"]');
+					var t = document.querySelector('[name="date_to"]');
+					if (f) f.value = from;
+					if (t) t.value = to;
+					htmx.trigger('#txn-filter-form [name="date_from"]', 'change');
+				}
+				function txnQuickRange(label) {
+					var now = new Date();
+					var y = now.getFullYear(), m = now.getMonth();
+					if (label === 'This Month') {
+						setTxnDateRange(
+							y+'-'+String(m+1).padStart(2,'0')+'-01',
+							y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0')
+						);
+					} else if (label === 'Last Month') {
+						var lm = m === 0 ? 11 : m-1, ly = m === 0 ? y-1 : y;
+						setTxnDateRange(
+							ly+'-'+String(lm+1).padStart(2,'0')+'-01',
+							ly+'-'+String(lm+1).padStart(2,'0')+'-'+String(new Date(ly,lm+1,0).getDate()).padStart(2,'0')
+						);
+					} else if (label === 'Last 3M') {
+						var d3 = new Date(y, m-2, 1);
+						setTxnDateRange(d3.getFullYear()+'-'+String(d3.getMonth()+1).padStart(2,'0')+'-01',
+							y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0'));
+					} else if (label === 'Last 6M') {
+						var d6 = new Date(y, m-5, 1);
+						setTxnDateRange(d6.getFullYear()+'-'+String(d6.getMonth()+1).padStart(2,'0')+'-01',
+							y+'-'+String(m+1).padStart(2,'0')+'-'+String(new Date(y,m+1,0).getDate()).padStart(2,'0'));
+					}
+				}
+			</script>
+			for _, label := range []string{"This Month", "Last Month", "Last 3M", "Last 6M"} {
+				<button
+					type="button"
+					class="btn btn-ghost"
+					style="font-size:0.75rem;padding:0.2rem 0.6rem"
+					onclick={ templ.JSFuncCall("txnQuickRange", label) }
+				>{ label }</button>
+			}
+		</div>
 		<div
 			id="txn-table-wrap"
 			hx-get="/transactions"
@@ -174,12 +217,31 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 			hx-swap="innerHTML"
 			hx-include="#txn-filter-form"
 		>
-			@TxnTableContent(txns, categories, tagMap, allTags, total, page, limit, filters)
+			@TxnTableContent(txns, categories, tagMap, allTags, total, page, limit, filters, summary)
 		</div>
 	}
 }
 
-templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, tagMap map[string][]db.Tag, allTags []db.Tag, total, page, limit int, filters TxnFilters) {
+templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, tagMap map[string][]db.Tag, allTags []db.Tag, total, page, limit int, filters TxnFilters, summary *TxnSummary) {
+	if summary != nil && filters.IsActive() {
+		<div class="card" style="padding:0.75rem 1rem;margin-bottom:0.75rem;display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
+			<span style="font-size:0.82rem;color:var(--muted)">{ fmt.Sprintf("%d transactions", summary.Count) }</span>
+			if summary.Spending > 0 {
+				<span style="font-size:0.82rem">Spent: <strong style="color:var(--red)">{ fmt.Sprintf("$%.2f", summary.Spending) }</strong></span>
+			}
+			if summary.Income > 0 {
+				<span style="font-size:0.82rem">Income: <strong style="color:var(--green)">{ fmt.Sprintf("$%.2f", summary.Income) }</strong></span>
+			}
+			if summary.Spending > 0 && summary.Income > 0 {
+				{{ net := summary.Income - summary.Spending }}
+				if net >= 0 {
+					<span style="font-size:0.82rem">Net: <strong style="color:var(--green)">{ fmt.Sprintf("+$%.2f", net) }</strong></span>
+				} else {
+					<span style="font-size:0.82rem">Net: <strong style="color:var(--red)">{ fmt.Sprintf("-$%.2f", -net) }</strong></span>
+				}
+			}
+		</div>
+	}
 	<div class="card" style="padding:0">
 		if len(txns) == 0 {
 			<p style="color:var(--muted);padding:2rem;text-align:center">No transactions found.</p>

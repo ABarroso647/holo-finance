@@ -84,20 +84,37 @@ func (h *CategorizeHandler) CreateRule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := h.queries.InsertRule(r.Context(), db.InsertRuleParams{
+	inserted, err := h.queries.InsertRule(r.Context(), db.InsertRuleParams{
 		ID:         uuid.New().String(),
 		MatchType:  "contains",
 		MatchField: "name",
 		MatchValue: matchValue,
 		CategoryID: categoryID,
 		Priority:   100,
-	}); err != nil {
+	})
+	if err != nil {
 		http.Error(w, fmt.Sprintf("insert rule: %v", err), http.StatusInternalServerError)
 		return
 	}
 
+	backfilled, err := categorize.ApplyRuleToNonManual(r.Context(), h.queries, db.ListRulesRow{
+		ID:         inserted.ID,
+		MatchType:  inserted.MatchType,
+		MatchField: inserted.MatchField,
+		MatchValue: inserted.MatchValue,
+		CategoryID: inserted.CategoryID,
+		Priority:   inserted.Priority,
+	})
+	if err != nil {
+		log.Printf("rule backfill: %v", err)
+	}
+
 	w.Header().Set("Content-Type", "text/html")
-	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.75rem">✓ Rule saved</span>`)
+	if backfilled > 0 {
+		fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.75rem">✓ Rule saved, %d existing transactions updated</span>`, backfilled)
+	} else {
+		fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.75rem">✓ Rule saved</span>`)
+	}
 }
 
 func toListRow(r db.GetTransactionRow) db.ListTransactionsRow {

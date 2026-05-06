@@ -61,6 +61,40 @@ func ApplyRulesToTransaction(ctx context.Context, queries *db.Queries, txn db.Tr
 	})
 }
 
+// ApplyRuleToNonManual applies a single rule to all non-manual transactions.
+// Returns the count of transactions updated.
+func ApplyRuleToNonManual(ctx context.Context, queries *db.Queries, rule db.ListRulesRow) (int, error) {
+	txns, err := queries.ListNonManualTransactions(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, txn := range txns {
+		var field string
+		switch rule.MatchField {
+		case "merchant_name":
+			if txn.MerchantName != nil {
+				field = *txn.MerchantName
+			}
+		default:
+			field = txn.Name
+		}
+		if !matches(rule.MatchType, rule.MatchValue, field) {
+			continue
+		}
+		catID := rule.CategoryID
+		if err := queries.UpdateTransactionCategoryBySource(ctx, db.UpdateTransactionCategoryBySourceParams{
+			CategoryID: &catID,
+			ID:         txn.ID,
+		}); err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, nil
+}
+
 func matchRules(rules []db.ListRulesRow, txn db.Transaction) string {
 	for _, rule := range rules {
 		var field string

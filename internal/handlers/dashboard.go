@@ -30,7 +30,7 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 	var monthStart, monthEnd, monthLabel string
 	if isLastMonth {
 		first := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, time.UTC)
-		last := time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, time.UTC) // day 0 = last day of prev month
+		last := time.Date(now.Year(), now.Month(), 0, 0, 0, 0, 0, time.UTC)
 		monthStart = first.Format("2006-01-02")
 		monthEnd = last.Format("2006-01-02")
 		monthLabel = first.Format("January 2006")
@@ -60,9 +60,43 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 		Offset: 0,
 	})
 
+	rawRecurring, _ := h.queries.GetRecurringSpendForPeriod(ctx, db.GetRecurringSpendForPeriodParams{
+		Date:   monthStart,
+		Date_2: monthEnd,
+	})
+	recurring := toFloat64(rawRecurring)
+
+	sixMonthsAgo := time.Date(now.Year(), now.Month()-5, 1, 0, 0, 0, 0, time.UTC)
+	monthlyFlows, _ := h.queries.GetMonthlyFlows(ctx, sixMonthsAgo.Format("2006-01-02"))
+	monthlyJSON := buildMonthlyFlowsJSON(monthlyFlows)
+
+	accounts, _ := h.queries.ListAccountsWithInstitution(ctx)
+
 	catsJSON := buildDashCatsJSON(topCats)
 
-	components.DashboardPage(netWorth, spending, income, salary, cashback, catsJSON, recentTxns, monthLabel, isLastMonth).Render(ctx, w)
+	components.DashboardPage(netWorth, spending, income, salary, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth).Render(ctx, w)
+}
+
+func buildMonthlyFlowsJSON(flows []db.GetMonthlyFlowsRow) string {
+	type chartData struct {
+		Labels   []string  `json:"labels"`
+		Spending []float64 `json:"spending"`
+		Income   []float64 `json:"income"`
+	}
+	d := chartData{
+		Labels:   make([]string, len(flows)),
+		Spending: make([]float64, len(flows)),
+		Income:   make([]float64, len(flows)),
+	}
+	for i, m := range flows {
+		if s, ok := m.Month.(string); ok {
+			d.Labels[i] = s
+		}
+		d.Spending[i] = toFloat64(m.Spending)
+		d.Income[i] = toFloat64(m.Income)
+	}
+	b, _ := json.Marshal(d)
+	return string(b)
 }
 
 func buildDashCatsJSON(cats []db.GetSpendingByCategoryRow) string {

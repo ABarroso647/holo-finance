@@ -68,13 +68,22 @@ func RunLLMCategorization(ctx context.Context, queries *db.Queries) (int, error)
 		model = "deepseek/deepseek-v4-flash"
 	}
 
-	categories, err := queries.ListCategories(ctx)
+	allCategories, err := queries.ListCategories(ctx)
 	if err != nil {
 		return 0, err
 	}
-	categoryNames := make([]string, len(categories))
-	for i, c := range categories {
+	// Pass only top-level parent categories to the LLM — cleaner list, better accuracy.
+	var parentCategories []db.Category
+	for _, c := range allCategories {
+		if c.ParentID == nil {
+			parentCategories = append(parentCategories, c)
+		}
+	}
+	categoryNames := make([]string, len(parentCategories))
+	catIDMap := make(map[string]string, len(parentCategories))
+	for i, c := range parentCategories {
 		categoryNames[i] = c.Name
+		catIDMap[strings.ToLower(c.Name)] = c.ID
 	}
 	categoryList := strings.Join(categoryNames, ", ")
 
@@ -86,7 +95,7 @@ func RunLLMCategorization(ctx context.Context, queries *db.Queries) (int, error)
 		}
 		batch := txns[i:end]
 
-		n, err := processBatch(ctx, queries, batch, categoryNames, categoryList, model, apiKey)
+		n, err := processBatch(ctx, queries, batch, categoryList, catIDMap, model, apiKey)
 		total += n
 		if err != nil {
 			return total, err
@@ -95,7 +104,7 @@ func RunLLMCategorization(ctx context.Context, queries *db.Queries) (int, error)
 	return total, nil
 }
 
-func processBatch(ctx context.Context, queries *db.Queries, batch []db.Transaction, categoryNames []string, categoryList, model, apiKey string) (int, error) {
+func processBatch(ctx context.Context, queries *db.Queries, batch []db.Transaction, categoryList string, catIDMap map[string]string, model, apiKey string) (int, error) {
 	type merchantEntry struct {
 		ID       string `json:"id"`
 		Merchant string `json:"merchant"`
@@ -155,20 +164,6 @@ Use the exact category name from the list. If unsure, use "Other".`, categoryLis
 	var result categorizeResult
 	if err := json.Unmarshal([]byte(llmResp.Choices[0].Message.Content), &result); err != nil {
 		return 0, fmt.Errorf("parse llm json: %w", err)
-	}
-
-	catMap := make(map[string]string)
-	for _, c := range categoryNames {
-		catMap[strings.ToLower(c)] = c
-	}
-
-	allCats, err := queries.ListCategories(ctx)
-	if err != nil {
-		return 0, err
-	}
-	catIDMap := make(map[string]string) // lowercase name → id
-	for _, c := range allCats {
-		catIDMap[strings.ToLower(c.Name)] = c.ID
 	}
 
 	count := 0

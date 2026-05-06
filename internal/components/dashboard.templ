@@ -6,8 +6,12 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, cashback float64, catsJSON string, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
+templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
 	{{ net := income - spending }}
+	{{ savingsRate := 0.0 }}
+	if income > 0 {
+		{{ savingsRate = (income - spending) / income * 100 }}
+	}
 	@Layout("Dashboard") {
 		<div class="page-header">
 			<h1>Dashboard</h1>
@@ -20,7 +24,7 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				}
 			</div>
 		</div>
-		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
+		<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem">
 			<div class="card">
 				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Income</div>
 				<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.2f", income) }</div>
@@ -42,10 +46,25 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				} else {
 					<div style="font-size:1.6rem;font-weight:700;color:var(--red)">{ fmt.Sprintf("-$%.2f", math.Abs(net)) }</div>
 				}
-				<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Net worth: { fmt.Sprintf("$%.2f", netWorth) }</div>
+				if income > 0 {
+					{{ srColor := "var(--red)" }}
+					if savingsRate >= 20 {
+						{{ srColor = "var(--green)" }}
+					} else if savingsRate >= 10 {
+						{{ srColor = "var(--yellow, #f59e0b)" }}
+					}
+					<div style={ fmt.Sprintf("font-size:0.7rem;color:%s;margin-top:0.25rem", srColor) }>Savings rate: { fmt.Sprintf("%.0f%%", savingsRate) }</div>
+				} else {
+					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Net worth: { fmt.Sprintf("$%.2f", netWorth) }</div>
+				}
+			</div>
+			<div class="card">
+				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Recurring</div>
+				<div style="font-size:1.6rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("$%.2f", recurring) }</div>
+				<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">this month</div>
 			</div>
 		</div>
-		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
 			<div class="card">
 				<div style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem">Top Spending — { monthLabel }</div>
 				if catsJSON == `{"labels":[],"values":[],"colors":[]}` {
@@ -95,6 +114,47 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 					</script>
 				}
 			</div>
+			<div class="card">
+				<div style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem">6-Month Trend</div>
+				<div hidden data-flows={ monthlyJSON } id="dash-flows-data"></div>
+				<div style="position:relative;height:220px">
+					<canvas id="dash-flows-chart"></canvas>
+				</div>
+				<script>
+					(function() {
+						try {
+							const d = JSON.parse(document.getElementById('dash-flows-data').dataset.flows);
+							if (!d.labels || d.labels.length === 0) {
+								document.getElementById('dash-flows-chart').insertAdjacentHTML('afterend', '<p style="color:var(--muted);font-size:0.85rem">No trend data yet.</p>');
+								return;
+							}
+							new Chart(document.getElementById('dash-flows-chart'), {
+								type: 'bar',
+								data: {
+									labels: d.labels,
+									datasets: [
+										{ label: 'Spending', data: d.spending, backgroundColor: 'rgba(239,68,68,0.5)', borderColor: '#ef4444', borderWidth: 1, borderRadius: 3 },
+										{ label: 'Income', data: d.income, backgroundColor: 'rgba(34,197,94,0.3)', borderColor: '#22c55e', borderWidth: 1, borderRadius: 3 }
+									]
+								},
+								options: {
+									responsive: true,
+									maintainAspectRatio: false,
+									plugins: { legend: { labels: { color: '#64748b', font: { size: 11 } } } },
+									scales: {
+										x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+										y: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: v => '$' + v.toFixed(0) } }
+									}
+								}
+							});
+						} catch(e) {
+							document.getElementById('dash-flows-chart').insertAdjacentHTML('afterend', '<p style="color:var(--red);font-size:0.75rem">Chart error: ' + e.message + '</p>');
+						}
+					})();
+				</script>
+			</div>
+		</div>
+		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
 			<div class="card" style="padding:0">
 				<div style="padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">Recent Transactions</div>
 				if len(recentTxns) == 0 {
@@ -112,8 +172,42 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 					</div>
 				}
 			</div>
+			if len(accounts) > 0 {
+				<div class="card" style="padding:0">
+					<div style="padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">Account Balances</div>
+					<table>
+						<tbody>
+							for _, a := range accounts {
+								<tr>
+									<td style="font-size:0.78rem;color:var(--muted);white-space:nowrap;width:6rem">{ a.InstitutionName }</td>
+									<td style="font-size:0.8rem">{ coalescePtr(a.DisplayName, a.Name) }</td>
+									<td style="font-size:0.75rem;text-align:right;white-space:nowrap">
+										if a.CurrentBalance != nil {
+											<span style={ fmt.Sprintf("color:%s", balanceColor(*a.CurrentBalance, a.Type == "credit" || a.Type == "loan")) }>
+												{ fmt.Sprintf("$%.2f", *a.CurrentBalance) }
+											</span>
+										} else {
+											<span style="color:var(--muted)">—</span>
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+					<div style="padding:0.5rem 1rem;border-top:1px solid var(--border)">
+						<a href="/accounts" style="font-size:0.75rem;color:var(--muted)">View all →</a>
+					</div>
+				</div>
+			}
 		</div>
 	}
+}
+
+func coalescePtr(a *string, b string) string {
+	if a != nil && *a != "" {
+		return *a
+	}
+	return b
 }
 
 templ dashTxnRow(txn db.ListTransactionsRow) {
