@@ -312,6 +312,53 @@ func (q *Queries) GetTransaction(ctx context.Context, id string) (GetTransaction
 	return i, err
 }
 
+const listNonManualTransactions = `-- name: ListNonManualTransactions :many
+SELECT id, account_id, plaid_transaction_id, date, authorized_date, name, merchant_name, amount, currency, category_id, category_source, category_confidence, pending, is_recurring, notes, created_at, updated_at FROM transactions
+WHERE category_source != 'manual'
+ORDER BY date DESC
+`
+
+func (q *Queries) ListNonManualTransactions(ctx context.Context) ([]Transaction, error) {
+	rows, err := q.db.QueryContext(ctx, listNonManualTransactions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Transaction
+	for rows.Next() {
+		var i Transaction
+		if err := rows.Scan(
+			&i.ID,
+			&i.AccountID,
+			&i.PlaidTransactionID,
+			&i.Date,
+			&i.AuthorizedDate,
+			&i.Name,
+			&i.MerchantName,
+			&i.Amount,
+			&i.Currency,
+			&i.CategoryID,
+			&i.CategorySource,
+			&i.CategoryConfidence,
+			&i.Pending,
+			&i.IsRecurring,
+			&i.Notes,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listTransactions = `-- name: ListTransactions :many
 SELECT t.id, t.account_id, t.plaid_transaction_id, t.date, t.authorized_date, t.name, t.merchant_name, t.amount, t.currency, t.category_id, t.category_source, t.category_confidence, t.pending, t.is_recurring, t.notes, t.created_at, t.updated_at,
     COALESCE(a.display_name, a.name) as account_name,
@@ -537,6 +584,16 @@ func (q *Queries) ListUncategorizedTransactions(ctx context.Context) ([]Transact
 	return items, nil
 }
 
+const resetRecurringForInstitution = `-- name: ResetRecurringForInstitution :exec
+UPDATE transactions SET is_recurring = 0
+WHERE account_id IN (SELECT id FROM accounts WHERE institution_id = ?)
+`
+
+func (q *Queries) ResetRecurringForInstitution(ctx context.Context, institutionID string) error {
+	_, err := q.db.ExecContext(ctx, resetRecurringForInstitution, institutionID)
+	return err
+}
+
 const searchTransactions = `-- name: SearchTransactions :many
 SELECT t.id, t.account_id, t.plaid_transaction_id, t.date, t.authorized_date, t.name, t.merchant_name, t.amount, t.currency, t.category_id, t.category_source, t.category_confidence, t.pending, t.is_recurring, t.notes, t.created_at, t.updated_at,
     COALESCE(a.display_name, a.name) as account_name,
@@ -649,6 +706,15 @@ func (q *Queries) SearchTransactions(ctx context.Context, arg SearchTransactions
 	return items, nil
 }
 
+const setTransactionRecurring = `-- name: SetTransactionRecurring :exec
+UPDATE transactions SET is_recurring = 1 WHERE plaid_transaction_id = ?
+`
+
+func (q *Queries) SetTransactionRecurring(ctx context.Context, plaidTransactionID string) error {
+	_, err := q.db.ExecContext(ctx, setTransactionRecurring, plaidTransactionID)
+	return err
+}
+
 const updateTransactionCategory = `-- name: UpdateTransactionCategory :exec
 UPDATE transactions
 SET category_id = ?, category_source = ?, category_confidence = NULL, updated_at = CURRENT_TIMESTAMP
@@ -663,6 +729,22 @@ type UpdateTransactionCategoryParams struct {
 
 func (q *Queries) UpdateTransactionCategory(ctx context.Context, arg UpdateTransactionCategoryParams) error {
 	_, err := q.db.ExecContext(ctx, updateTransactionCategory, arg.CategoryID, arg.CategorySource, arg.ID)
+	return err
+}
+
+const updateTransactionCategoryBySource = `-- name: UpdateTransactionCategoryBySource :exec
+UPDATE transactions
+SET category_id = ?, category_source = 'rule', category_confidence = NULL, updated_at = CURRENT_TIMESTAMP
+WHERE id = ? AND category_source != 'manual'
+`
+
+type UpdateTransactionCategoryBySourceParams struct {
+	CategoryID *string `json:"category_id"`
+	ID         string  `json:"id"`
+}
+
+func (q *Queries) UpdateTransactionCategoryBySource(ctx context.Context, arg UpdateTransactionCategoryBySourceParams) error {
+	_, err := q.db.ExecContext(ctx, updateTransactionCategoryBySource, arg.CategoryID, arg.ID)
 	return err
 }
 
