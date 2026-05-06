@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -84,18 +85,27 @@ func (h *CardsHandler) FetchRates(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	ctx, cancel := context.WithTimeout(r.Context(), 50*time.Second)
+	defer cancel()
+
 	w.Header().Set("Content-Type", "text/html")
-	if err := rewards.FetchAndStoreRates(r.Context(), h.queries, id, cardName); err != nil {
-		fmt.Fprintf(w, `<span style="color:var(--red);font-size:0.8rem">Error: %s</span>`, err.Error())
+	existingRates, _ := h.queries.ListCardRewardRatesForAccount(r.Context(), id)
+	if err := rewards.FetchAndStoreRates(ctx, h.queries, id, cardName); err != nil {
+		if view == "settings" {
+			categories, _ := h.queries.ListCategories(r.Context())
+			components.SettingsCardRatesContent(id, existingRates, categories, err.Error()).Render(r.Context(), w)
+		} else {
+			components.CardRatesTable(id, existingRates, err.Error(), "").Render(r.Context(), w)
+		}
 		return
 	}
 
 	rates, _ := h.queries.ListCardRewardRatesForAccount(r.Context(), id)
 	if view == "settings" {
 		categories, _ := h.queries.ListCategories(r.Context())
-		components.SettingsCardRatesContent(id, rates, categories).Render(r.Context(), w)
+		components.SettingsCardRatesContent(id, rates, categories, "").Render(r.Context(), w)
 	} else {
-		components.CardRatesTable(id, rates).Render(r.Context(), w)
+		components.CardRatesTable(id, rates, "", "").Render(r.Context(), w)
 	}
 }
 
@@ -154,9 +164,9 @@ func (h *CardsHandler) AddRate(w http.ResponseWriter, r *http.Request) {
 	rates, _ := h.queries.ListCardRewardRatesForAccount(r.Context(), id)
 	if view == "settings" {
 		categories, _ := h.queries.ListCategories(r.Context())
-		components.SettingsCardRatesContent(id, rates, categories).Render(r.Context(), w)
+		components.SettingsCardRatesContent(id, rates, categories, "").Render(r.Context(), w)
 	} else {
-		components.CardRatesTable(id, rates).Render(r.Context(), w)
+		components.CardRatesTable(id, rates, "", "").Render(r.Context(), w)
 	}
 }
 
@@ -174,9 +184,9 @@ func (h *CardsHandler) DeleteRate(w http.ResponseWriter, r *http.Request) {
 	rates, _ := h.queries.ListCardRewardRatesForAccount(r.Context(), id)
 	if view == "settings" {
 		categories, _ := h.queries.ListCategories(r.Context())
-		components.SettingsCardRatesContent(id, rates, categories).Render(r.Context(), w)
+		components.SettingsCardRatesContent(id, rates, categories, "").Render(r.Context(), w)
 	} else {
-		components.CardRatesTable(id, rates).Render(r.Context(), w)
+		components.CardRatesTable(id, rates, "", "").Render(r.Context(), w)
 	}
 }
 

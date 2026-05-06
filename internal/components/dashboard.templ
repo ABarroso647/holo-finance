@@ -6,7 +6,7 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ DashboardPage(netWorth float64, spending float64, income float64, catsJSON string, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
+templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, cashback float64, catsJSON string, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
 	{{ net := income - spending }}
 	@Layout("Dashboard") {
 		<div class="page-header">
@@ -24,10 +24,16 @@ templ DashboardPage(netWorth float64, spending float64, income float64, catsJSON
 			<div class="card">
 				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Income</div>
 				<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.2f", income) }</div>
+				if salary > 0 {
+					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Salary: { fmt.Sprintf("$%.2f", salary) }</div>
+				}
 			</div>
 			<div class="card">
 				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Spending</div>
 				<div style="font-size:1.6rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("$%.2f", spending) }</div>
+				if cashback > 0 {
+					<div style="font-size:0.7rem;color:var(--green);margin-top:0.25rem">CC cashback: { fmt.Sprintf("-$%.2f", cashback) }</div>
+				}
 			</div>
 			<div class="card">
 				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Net</div>

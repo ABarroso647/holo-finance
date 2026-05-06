@@ -20,17 +20,31 @@ templ ConnectPage() {
 					btn.textContent = 'Loading…';
 				}
 
-				const res = await fetch('/api/plaid/link-token', { method: 'POST' });
-				if (!res.ok) {
-					if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
-					alert('Failed to connect — check that Plaid is configured correctly.');
-					return;
+				let link_token;
+				if (receivedRedirectUri) {
+					// Returning from OAuth redirect — reuse the token stored before leaving
+					link_token = sessionStorage.getItem('plaid_link_token');
+					if (!link_token) {
+						if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
+						alert('Session expired — please try connecting again.');
+						return;
+					}
+				} else {
+					const res = await fetch('/api/plaid/link-token', { method: 'POST' });
+					if (!res.ok) {
+						if (btn) { btn.disabled = false; btn.textContent = 'Connect Bank Account'; }
+						alert('Failed to connect — check that Plaid is configured correctly.');
+						return;
+					}
+					const data = await res.json();
+					link_token = data.link_token;
+					sessionStorage.setItem('plaid_link_token', link_token);
 				}
-				const { link_token } = await res.json();
 
 				const config = {
 					token: link_token,
 					onSuccess: async (publicToken, metadata) => {
+						sessionStorage.removeItem('plaid_link_token');
 						await fetch('/api/plaid/exchange-token', {
 							method: 'POST',
 							headers: { 'Content-Type': 'application/json' },
