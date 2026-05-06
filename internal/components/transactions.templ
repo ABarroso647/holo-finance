@@ -87,10 +87,12 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 			>
 				<option value="">All categories</option>
 				for _, c := range categories {
-					if filters.CategoryID == c.ID {
-						<option value={ c.ID } selected>{ c.Name }</option>
-					} else {
-						<option value={ c.ID }>{ c.Name }</option>
+					if c.ParentID == nil {
+						if filters.CategoryID == c.ID {
+							<option value={ c.ID } selected>{ c.Name }</option>
+						} else {
+							<option value={ c.ID }>{ c.Name }</option>
+						}
 					}
 				}
 			</select>
@@ -280,6 +282,9 @@ templ TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags 
 		<td style="color:var(--muted);font-size:0.8rem;white-space:nowrap">{ txn.Date }</td>
 		<td>
 			<span style="font-size:0.875rem">{ txn.Name }</span>
+			if txn.IsRecurring == 1 {
+				<span style="margin-left:0.4rem;font-size:0.65rem;color:var(--accent);opacity:0.8" title="Recurring">↻</span>
+			}
 			if txn.Pending == 1 {
 				<span class="badge pending" style="margin-left:0.4rem;font-size:0.65rem">pending</span>
 			}

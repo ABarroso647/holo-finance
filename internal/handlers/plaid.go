@@ -157,7 +157,7 @@ func (h *PlaidHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("HX-Trigger", "txnTableRefresh")
 		for _, s := range results {
 			if s.Error != "" {
-				fmt.Fprintf(w, `<span style="color:var(--red)">%s: error — %s</span><br>`, s.Name, s.Error)
+				fmt.Fprintf(w, `<span style="color:var(--red)">%s: %s — <a href="/accounts" style="color:var(--red)">try Re-linking</a></span><br>`, s.Name, s.Error)
 			} else {
 				fmt.Fprintf(w, `<span style="color:var(--green)">%s: +%d added, %d modified, %d removed</span><br>`, s.Name, s.Added, s.Modified, s.Removed)
 			}

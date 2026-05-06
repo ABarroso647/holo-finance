@@ -6,7 +6,7 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
+templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
 	{{ net := income - spending }}
 	{{ savingsRate := 0.0 }}
 	if income > 0 {
@@ -29,7 +29,13 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				<div style="color:var(--muted);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Income</div>
 				<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.2f", income) }</div>
 				if salary > 0 {
-					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Salary: { fmt.Sprintf("$%.2f", salary) }</div>
+					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">Wages: { fmt.Sprintf("$%.2f", salary) }</div>
+				}
+				if interest > 0 {
+					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.15rem">Interest: { fmt.Sprintf("$%.2f", interest) }</div>
+				}
+				if income > 0 && salary == 0 && interest == 0 {
+					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">depository inflows</div>
 				}
 			</div>
 			<div class="card">

@@ -48,6 +48,7 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 	spending := toFloat64(summary.Spending)
 	income := toFloat64(summary.Income)
 	salary := toFloat64(summary.Salary)
+	interest := toFloat64(summary.Interest)
 	cashback := toFloat64(summary.Cashback)
 
 	topCats, _ := h.queries.GetSpendingByCategory(ctx, db.GetSpendingByCategoryParams{
@@ -74,7 +75,7 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 	catsJSON := buildDashCatsJSON(topCats)
 
-	components.DashboardPage(netWorth, spending, income, salary, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth).Render(ctx, w)
+	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth).Render(ctx, w)
 }
 
 func buildMonthlyFlowsJSON(flows []db.GetMonthlyFlowsRow) string {

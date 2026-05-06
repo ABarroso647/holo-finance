@@ -87,7 +87,8 @@ LEFT JOIN institutions i ON a.institution_id = i.id
 LEFT JOIN categories c ON t.category_id = c.id
 WHERE (sqlc.arg(search) = '' OR LOWER(t.name) LIKE '%' || LOWER(sqlc.arg(search)) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(sqlc.arg(search)) || '%')
 AND (sqlc.arg(account_id) = '' OR t.account_id = sqlc.arg(account_id))
-AND (sqlc.arg(category_id) = '' OR t.category_id = sqlc.arg(category_id))
+AND (sqlc.arg(category_id) = '' OR t.category_id = sqlc.arg(category_id)
+     OR t.category_id IN (SELECT id FROM categories WHERE parent_id = sqlc.arg(category_id)))
 AND (sqlc.arg(date_from) = '' OR t.date >= sqlc.arg(date_from))
 AND (sqlc.arg(date_to) = '' OR t.date <= sqlc.arg(date_to))
 AND (sqlc.arg(recurring) = '' OR t.is_recurring = 1)
@@ -99,7 +100,8 @@ LIMIT sqlc.arg(limit) OFFSET sqlc.arg(offset);
 SELECT COUNT(*) FROM transactions t
 WHERE (sqlc.arg(search) = '' OR LOWER(t.name) LIKE '%' || LOWER(sqlc.arg(search)) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(sqlc.arg(search)) || '%')
 AND (sqlc.arg(account_id) = '' OR t.account_id = sqlc.arg(account_id))
-AND (sqlc.arg(category_id) = '' OR t.category_id = sqlc.arg(category_id))
+AND (sqlc.arg(category_id) = '' OR t.category_id = sqlc.arg(category_id)
+     OR t.category_id IN (SELECT id FROM categories WHERE parent_id = sqlc.arg(category_id)))
 AND (sqlc.arg(date_from) = '' OR t.date >= sqlc.arg(date_from))
 AND (sqlc.arg(date_to) = '' OR t.date <= sqlc.arg(date_to))
 AND (sqlc.arg(recurring) = '' OR t.is_recurring = 1)
@@ -125,7 +127,8 @@ FROM transactions t
 LEFT JOIN accounts a ON t.account_id = a.id
 WHERE (sqlc.arg(search) = '' OR LOWER(t.name) LIKE '%' || LOWER(sqlc.arg(search)) || '%' OR LOWER(COALESCE(t.merchant_name,'')) LIKE '%' || LOWER(sqlc.arg(search)) || '%')
 AND (sqlc.arg(account_id) = '' OR t.account_id = sqlc.arg(account_id))
-AND (sqlc.arg(category_id) = '' OR t.category_id = sqlc.arg(category_id))
+AND (sqlc.arg(category_id) = '' OR t.category_id = sqlc.arg(category_id)
+     OR t.category_id IN (SELECT id FROM categories WHERE parent_id = sqlc.arg(category_id)))
 AND (sqlc.arg(date_from) = '' OR t.date >= sqlc.arg(date_from))
 AND (sqlc.arg(date_to) = '' OR t.date <= sqlc.arg(date_to))
 AND (sqlc.arg(recurring) = '' OR t.is_recurring = 1)

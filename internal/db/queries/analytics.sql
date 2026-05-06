@@ -20,6 +20,10 @@ SELECT
         AND t.category_id LIKE 'INCOME_WAGES%'
         THEN ABS(t.amount) ELSE 0 END), 0.0) as salary,
     COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND (t.category_id LIKE 'INCOME_INTEREST%' OR t.category_id = 'INCOME_INTEREST')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as interest,
+    COALESCE(SUM(CASE WHEN t.amount < 0
         AND a.type = 'credit'
         AND t.category_id LIKE 'INCOME%'
         THEN ABS(t.amount) ELSE 0 END), 0.0) as cashback
