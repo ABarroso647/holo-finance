@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"holo/internal/categorize"
 	"holo/internal/crypto"
@@ -27,6 +28,19 @@ func NewPlaidHandler(api *plaid.APIClient, queries *db.Queries) *PlaidHandler {
 	return &PlaidHandler{api: api, queries: queries, encKey: crypto.KeyFromEnv()}
 }
 
+// redirectURI returns the OAuth redirect URI to use in link token requests.
+// PLAID_REDIRECT_URI env var takes priority; falls back to deriving from the request.
+func (h *PlaidHandler) redirectURI(r *http.Request) string {
+	if v := os.Getenv("PLAID_REDIRECT_URI"); v != "" {
+		return v
+	}
+	scheme := r.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		scheme = "https" // default to https — Plaid requires it for OAuth
+	}
+	return scheme + "://" + r.Host + "/connect"
+}
+
 func (h *PlaidHandler) LinkToken(w http.ResponseWriter, r *http.Request) {
 	user := plaid.NewLinkTokenCreateRequestUser("holo-user")
 	req := plaid.NewLinkTokenCreateRequest("Holo", "en", []plaid.CountryCode{plaid.COUNTRYCODE_CA}, *user)
@@ -38,11 +52,9 @@ func (h *PlaidHandler) LinkToken(w http.ResponseWriter, r *http.Request) {
 		plaid.PRODUCTS_INVESTMENTS,
 	})
 
-	scheme := r.Header.Get("X-Forwarded-Proto")
-	if scheme == "" {
-		scheme = "http"
-	}
-	req.SetRedirectUri(scheme + "://" + r.Host + "/connect")
+	redirectURI := h.redirectURI(r)
+	req.SetRedirectUri(redirectURI)
+	log.Printf("plaid: link token redirect_uri=%s", redirectURI)
 
 	resp, _, err := h.api.PlaidApi.LinkTokenCreate(r.Context()).LinkTokenCreateRequest(*req).Execute()
 	if err != nil {
@@ -318,11 +330,9 @@ func (h *PlaidHandler) RelinkToken(w http.ResponseWriter, r *http.Request) {
 		plaid.PRODUCTS_INVESTMENTS,
 	})
 
-	scheme := r.Header.Get("X-Forwarded-Proto")
-	if scheme == "" {
-		scheme = "http"
-	}
-	req.SetRedirectUri(scheme + "://" + r.Host + "/connect")
+	redirectURI := h.redirectURI(r)
+	req.SetRedirectUri(redirectURI)
+	log.Printf("plaid: relink token redirect_uri=%s", redirectURI)
 
 	resp, _, err := h.api.PlaidApi.LinkTokenCreate(r.Context()).LinkTokenCreateRequest(*req).Execute()
 	if err != nil {
@@ -372,6 +382,54 @@ func (h *PlaidHandler) RelinkComplete(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">✓ Re-linked and synced</span>`)
+}
+
+// DisconnectInstitution removes an institution, its accounts, and all associated transactions from the DB,
+// and calls Plaid ItemRemove to revoke the access token.
+func (h *PlaidHandler) DisconnectInstitution(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		InstitutionID string `json:"institution_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.InstitutionID == "" {
+		http.Error(w, "institution_id required", http.StatusBadRequest)
+		return
+	}
+
+	inst, err := h.queries.GetInstitutionByID(r.Context(), body.InstitutionID)
+	if err != nil {
+		http.Error(w, "institution not found", http.StatusNotFound)
+		return
+	}
+
+	token, err := crypto.Decrypt(h.encKey, inst.PlaidAccessToken)
+	if err != nil {
+		http.Error(w, "decrypt token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Tell Plaid to revoke access — best-effort, don't block on error.
+	req := plaid.NewItemRemoveRequest(token)
+	if _, _, err := h.api.PlaidApi.ItemRemove(r.Context()).ItemRemoveRequest(*req).Execute(); err != nil {
+		log.Printf("plaid ItemRemove for %s: %v (continuing with local delete)", inst.Name, err)
+	}
+
+	// Delete in dependency order: transactions → accounts → institution.
+	if err := h.queries.DeleteTransactionsByInstitution(r.Context(), body.InstitutionID); err != nil {
+		http.Error(w, "delete transactions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.queries.DeleteAccountsByInstitution(r.Context(), body.InstitutionID); err != nil {
+		http.Error(w, "delete accounts: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.queries.DeleteInstitution(r.Context(), body.InstitutionID); err != nil {
+		http.Error(w, "delete institution: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("disconnected institution %s (%s)", inst.Name, inst.ID)
+	w.Header().Set("Content-Type", "text/html")
+	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">✓ Disconnected</span>`)
 }
 
 // deduplicates retried webhooks via SHA-256 hash as ID (INSERT OR IGNORE).
