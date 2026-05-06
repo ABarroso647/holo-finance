@@ -35,18 +35,20 @@ func (q *Queries) GetAccountSpendSince(ctx context.Context, arg GetAccountSpendS
 
 const getMonthlyFlows = `-- name: GetMonthlyFlows :many
 SELECT
-    strftime('%Y-%m', date) as month,
-    CAST(COALESCE(SUM(CASE WHEN amount < 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN ABS(amount) ELSE 0 END), 0.0) AS REAL) as income,
-    CAST(COALESCE(SUM(CASE WHEN amount > 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN amount ELSE 0 END), 0.0) AS REAL) as spending
-FROM transactions
-WHERE date >= ? AND pending = 0
-GROUP BY strftime('%Y-%m', date)
+    strftime('%Y-%m', t.date) as month,
+    CAST(COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) AS REAL) as income,
+    CAST(COALESCE(SUM(CASE WHEN t.amount > 0
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN t.amount ELSE 0 END), 0.0) AS REAL) as spending
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.pending = 0
+GROUP BY strftime('%Y-%m', t.date)
 ORDER BY month ASC
 `
 
@@ -141,18 +143,20 @@ func (q *Queries) GetMonthlySpendingByCategory(ctx context.Context, date string)
 
 const getMonthlyTotals = `-- name: GetMonthlyTotals :many
 SELECT
-    strftime('%Y-%m', date) as month,
-    COALESCE(SUM(CASE WHEN amount > 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN amount ELSE 0 END), 0.0) as spending,
-    COALESCE(SUM(CASE WHEN amount < 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN ABS(amount) ELSE 0 END), 0.0) as income
-FROM transactions
-WHERE date >= ? AND pending = 0
-GROUP BY strftime('%Y-%m', date)
+    strftime('%Y-%m', t.date) as month,
+    COALESCE(SUM(CASE WHEN t.amount > 0
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN t.amount ELSE 0 END), 0.0) as spending,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as income
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.pending = 0
+GROUP BY strftime('%Y-%m', t.date)
 ORDER BY month ASC
 `
 
@@ -320,16 +324,26 @@ func (q *Queries) GetSpendingByCategory(ctx context.Context, arg GetSpendingByCa
 
 const getThisMonthSummary = `-- name: GetThisMonthSummary :one
 SELECT
-    COALESCE(SUM(CASE WHEN amount > 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN amount ELSE 0 END), 0.0) as spending,
-    COALESCE(SUM(CASE WHEN amount < 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN ABS(amount) ELSE 0 END), 0.0) as income
-FROM transactions
-WHERE date >= ? AND date <= ? AND pending = 0
+    COALESCE(SUM(CASE WHEN t.amount > 0
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN t.amount ELSE 0 END), 0.0) as spending,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as income,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id LIKE 'INCOME_WAGES%'
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as salary,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'credit'
+        AND t.category_id LIKE 'INCOME%'
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as cashback
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.date <= ? AND t.pending = 0
 `
 
 type GetThisMonthSummaryParams struct {
@@ -340,13 +354,22 @@ type GetThisMonthSummaryParams struct {
 type GetThisMonthSummaryRow struct {
 	Spending interface{} `json:"spending"`
 	Income   interface{} `json:"income"`
+	Salary   interface{} `json:"salary"`
+	Cashback interface{} `json:"cashback"`
 }
 
-// Transfers excluded from both spending and income to avoid double-counting CC payments
+// Spending = outflows across all accounts, excluding transfers.
+// Income = inflows on depository accounts only, excluding transfers.
+// Cashback = INCOME% credits on credit accounts (statement credits, rewards).
 func (q *Queries) GetThisMonthSummary(ctx context.Context, arg GetThisMonthSummaryParams) (GetThisMonthSummaryRow, error) {
 	row := q.db.QueryRowContext(ctx, getThisMonthSummary, arg.Date, arg.Date_2)
 	var i GetThisMonthSummaryRow
-	err := row.Scan(&i.Spending, &i.Income)
+	err := row.Scan(
+		&i.Spending,
+		&i.Income,
+		&i.Salary,
+		&i.Cashback,
+	)
 	return i, err
 }
 

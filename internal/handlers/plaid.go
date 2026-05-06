@@ -141,6 +141,10 @@ func (h *PlaidHandler) Sync(w http.ResponseWriter, r *http.Request) {
 			s.Error = err.Error()
 		}
 		results = append(results, s)
+
+		if err := plaidclient.SyncRecurring(r.Context(), h.api, h.queries, inst.ID, token); err != nil {
+			log.Printf("recurring sync for %s: %v", inst.Name, err)
+		}
 	}
 
 	ruleCount, err := categorize.ApplyRules(r.Context(), h.queries)
@@ -150,6 +154,7 @@ func (h *PlaidHandler) Sync(w http.ResponseWriter, r *http.Request) {
 
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/html")
+		w.Header().Set("HX-Trigger", "txnTableRefresh")
 		for _, s := range results {
 			if s.Error != "" {
 				fmt.Fprintf(w, `<span style="color:var(--red)">%s: error — %s</span><br>`, s.Name, s.Error)

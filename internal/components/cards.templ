@@ -104,7 +104,11 @@ templ CardCard(card CardSummary) {
 			</div>
 		</div>
 		<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
-			@CardRatesTable(card.Account.ID, card.Rates)
+			{{ cardLabel := card.Account.Name }}
+		if card.Account.DisplayName != nil && *card.Account.DisplayName != "" {
+			{{ cardLabel = *card.Account.DisplayName }}
+		}
+		@CardRatesTable(card.Account.ID, card.Rates, "", cardLabel)
 		</div>
 	</div>
 }
@@ -175,7 +179,11 @@ templ cardSpendSection(total float64, label string, topCats []db.GetTopCategorie
 	}
 }
 
-templ CardRatesTable(accountID string, rates []db.ListCardRewardRatesForAccountRow) {
+templ CardRatesTableWithError(accountID string, rates []db.ListCardRewardRatesForAccountRow, errMsg string) {
+	@CardRatesTable(accountID, rates, errMsg, "")
+}
+
+templ CardRatesTable(accountID string, rates []db.ListCardRewardRatesForAccountRow, errMsg string, cardLabel string) {
 	<div id={ fmt.Sprintf("card-rates-%s", accountID) }>
 		<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
 			<div style="font-size:0.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em">Reward Rates</div>
@@ -184,17 +192,29 @@ templ CardRatesTable(accountID string, rates []db.ListCardRewardRatesForAccountR
 					hx-post={ fmt.Sprintf("/api/cards/%s/fetch-rates", accountID) }
 					hx-target={ fmt.Sprintf("#card-rates-%s", accountID) }
 					hx-swap="outerHTML"
-					hx-indicator={ fmt.Sprintf("#rates-spinner-%s", accountID) }
-					style="display:inline"
+					style="display:flex;gap:0.4rem;align-items:center"
 				>
-					<span id={ fmt.Sprintf("rates-spinner-%s", accountID) } class="spin-indicator"></span>
-					<button type="submit" class="btn btn-ghost" style="font-size:0.72rem;padding:0.2rem 0.5rem" hx-disabled-elt="this">Fetch Rates</button>
+					<input
+						type="text"
+						name="card_name"
+						class="filter-input"
+						style="width:180px;font-size:0.72rem"
+						placeholder="e.g. Amex Cobalt Canada"
+						value={ cardLabel }
+					/>
+					<button type="submit" class="btn btn-ghost" style="font-size:0.72rem;padding:0.2rem 0.5rem" hx-disabled-elt="this">
+						<span class="spin-indicator"></span>
+						Fetch
+					</button>
 				</form>
 			</div>
 		</div>
-		if len(rates) == 0 {
+		if errMsg != "" {
+			<p style="font-size:0.8rem;color:var(--red);margin-bottom:0.5rem">{ errMsg }</p>
+		}
+		if len(rates) == 0 && errMsg == "" {
 			<p style="font-size:0.8rem;color:var(--muted)">No rates configured. Click "Fetch Rates" to look up via Jina + DeepSeek, or add manually in Settings.</p>
-		} else {
+		} else if len(rates) > 0 {
 			<div style="display:flex;flex-direction:column;gap:0.25rem">
 				for _, rate := range rates {
 					<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.78rem">

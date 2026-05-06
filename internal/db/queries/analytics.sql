@@ -2,34 +2,48 @@
 SELECT COALESCE(SUM(current_balance), 0.0) FROM accounts;
 
 -- name: GetThisMonthSummary :one
--- Transfers excluded from both spending and income to avoid double-counting CC payments
+-- Spending = outflows across all accounts, excluding transfers.
+-- Income = inflows on depository accounts only, excluding transfers.
+-- Cashback = INCOME% credits on credit accounts (statement credits, rewards).
 SELECT
-    COALESCE(SUM(CASE WHEN amount > 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN amount ELSE 0 END), 0.0) as spending,
-    COALESCE(SUM(CASE WHEN amount < 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN ABS(amount) ELSE 0 END), 0.0) as income
-FROM transactions
-WHERE date >= ? AND date <= ? AND pending = 0;
+    COALESCE(SUM(CASE WHEN t.amount > 0
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN t.amount ELSE 0 END), 0.0) as spending,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as income,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id LIKE 'INCOME_WAGES%'
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as salary,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'credit'
+        AND t.category_id LIKE 'INCOME%'
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as cashback
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.date <= ? AND t.pending = 0;
 
 -- name: GetMonthlyTotals :many
 -- date param is start date YYYY-MM-DD string, returns last 12 months
 SELECT
-    strftime('%Y-%m', date) as month,
-    COALESCE(SUM(CASE WHEN amount > 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN amount ELSE 0 END), 0.0) as spending,
-    COALESCE(SUM(CASE WHEN amount < 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN ABS(amount) ELSE 0 END), 0.0) as income
-FROM transactions
-WHERE date >= ? AND pending = 0
-GROUP BY strftime('%Y-%m', date)
+    strftime('%Y-%m', t.date) as month,
+    COALESCE(SUM(CASE WHEN t.amount > 0
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN t.amount ELSE 0 END), 0.0) as spending,
+    COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) as income
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.pending = 0
+GROUP BY strftime('%Y-%m', t.date)
 ORDER BY month ASC;
 
 -- name: GetMonthlySpendingByCategory :many
@@ -123,16 +137,18 @@ ORDER BY total DESC;
 -- Returns income and spending per month (ordered oldest first).
 -- date param is start YYYY-MM-DD string.
 SELECT
-    strftime('%Y-%m', date) as month,
-    CAST(COALESCE(SUM(CASE WHEN amount < 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN ABS(amount) ELSE 0 END), 0.0) AS REAL) as income,
-    CAST(COALESCE(SUM(CASE WHEN amount > 0
-        AND category_id NOT LIKE 'TRANSFER%'
-        AND category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
-        THEN amount ELSE 0 END), 0.0) AS REAL) as spending
-FROM transactions
-WHERE date >= ? AND pending = 0
-GROUP BY strftime('%Y-%m', date)
+    strftime('%Y-%m', t.date) as month,
+    CAST(COALESCE(SUM(CASE WHEN t.amount < 0
+        AND a.type = 'depository'
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN ABS(t.amount) ELSE 0 END), 0.0) AS REAL) as income,
+    CAST(COALESCE(SUM(CASE WHEN t.amount > 0
+        AND t.category_id NOT LIKE 'TRANSFER%'
+        AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')
+        THEN t.amount ELSE 0 END), 0.0) AS REAL) as spending
+FROM transactions t
+JOIN accounts a ON t.account_id = a.id
+WHERE t.date >= ? AND t.pending = 0
+GROUP BY strftime('%Y-%m', t.date)
 ORDER BY month ASC;

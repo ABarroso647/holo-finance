@@ -73,8 +73,14 @@ templ AccountDisplayNameRow(a db.ListAccountsWithInstitutionRow) {
 					}
 					placeholder="e.g. Main Chequing"
 				/>
-				<button type="submit" class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem">Save</button>
+				<button type="submit" class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem" hx-disabled-elt="this">
+					<span class="spin-indicator"></span>
+					Save
+				</button>
 			</form>
+			if a.DisplayName != nil && *a.DisplayName != "" {
+				<span style="font-size:0.75rem;color:var(--green);margin-left:0.25rem">✓ { *a.DisplayName }</span>
+			}
 		</td>
 	</tr>
 }
@@ -329,7 +335,7 @@ templ settingsCardRates(cards []CardRatesData, categories []db.Category) {
 								<button type="submit" class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem" hx-disabled-elt="this">Fetch Rates</button>
 							</form>
 						</div>
-						@SettingsCardRatesContent(c.Account.ID, c.Rates, categories)
+						@SettingsCardRatesContent(c.Account.ID, c.Rates, categories, "")
 					</div>
 				}
 			</div>
@@ -337,8 +343,11 @@ templ settingsCardRates(cards []CardRatesData, categories []db.Category) {
 	</div>
 }
 
-templ SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesForAccountRow, categories []db.Category) {
+templ SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesForAccountRow, categories []db.Category, errMsg string) {
 	<div id={ fmt.Sprintf("settings-rates-%s", accountID) }>
+		if errMsg != "" {
+			<p style="font-size:0.8rem;color:var(--red);margin-bottom:0.5rem">{ errMsg }</p>
+		}
 		if len(rates) > 0 {
 			<table style="font-size:0.8rem;width:100%;margin-bottom:0.75rem">
 				<thead>

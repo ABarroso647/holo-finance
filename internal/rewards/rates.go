@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	db "holo/internal/db/generated"
 	"github.com/google/uuid"
@@ -48,12 +49,23 @@ func FetchAndStoreRates(ctx context.Context, queries *db.Queries, accountID, car
 	for _, r := range rates {
 		catID := MatchCategory(r.Category, categories)
 
-		rawCat := r.Category
+		// Treat generic catch-all phrases as a null catch-all, not an unmatched category.
+		isCatchAll := isCatchAllPhrase(r.Category)
+
+		var rawCatPtr *string
+		if !isCatchAll {
+			rawCat := r.Category
+			rawCatPtr = &rawCat
+		}
+		if isCatchAll {
+			catID = nil
+		}
+
 		params := db.UpsertCardRewardRateParams{
 			ID:          uuid.New().String(),
 			AccountID:   accountID,
 			CategoryID:  catID,
-			RawCategory: &rawCat,
+			RawCategory: rawCatPtr,
 			RewardRate:  r.Rate,
 			CapAmount:   r.CapAmount,
 			CapPeriod:   r.CapPeriod,
@@ -72,6 +84,22 @@ func FetchAndStoreRates(ctx context.Context, queries *db.Queries, accountID, car
 
 // RematchRates re-runs tier 1/2 category matching on all stored rates
 // that currently have no category_id. Useful after new categories arrive.
+var catchAllPhrases = []string{
+	"everything else", "all other", "all other purchases", "all purchases",
+	"all other transactions", "other purchases", "other", "general",
+	"all spending", "base rate",
+}
+
+func isCatchAllPhrase(s string) bool {
+	n := strings.ToLower(strings.TrimSpace(s))
+	for _, phrase := range catchAllPhrases {
+		if n == phrase || strings.Contains(n, phrase) {
+			return true
+		}
+	}
+	return false
+}
+
 func RematchRates(ctx context.Context, queries *db.Queries) (int, error) {
 	unmatched, err := queries.ListAllCardRewardRatesWithNullCategory(ctx)
 	if err != nil {
