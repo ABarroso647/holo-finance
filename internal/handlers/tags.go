@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"holo/internal/components"
@@ -8,6 +10,43 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
+
+func (h *TagHandler) Page(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	dateFrom := r.URL.Query().Get("date_from")
+	dateTo := r.URL.Query().Get("date_to")
+
+	spend, _ := h.queries.GetSpendByTag(ctx, db.GetSpendByTagParams{
+		DateFrom: dateFrom,
+		DateTo:   dateTo,
+	})
+	allTags, _ := h.queries.ListTags(ctx)
+
+	tagsJSON := buildTagsChartJSON(spend)
+
+	components.TagsPage(spend, allTags, dateFrom, dateTo, tagsJSON).Render(ctx, w)
+}
+
+func buildTagsChartJSON(rows []db.GetSpendByTagRow) string {
+	if len(rows) == 0 {
+		return `{"labels":[],"values":[],"colors":[],"ids":[]}`
+	}
+	labels := make([]string, len(rows))
+	values := make([]float64, len(rows))
+	colors := make([]string, len(rows))
+	ids := make([]string, len(rows))
+	for i, r := range rows {
+		labels[i] = r.Name
+		values[i] = r.Total
+		colors[i] = r.Color
+		ids[i] = r.ID
+	}
+	lb, _ := json.Marshal(labels)
+	vb, _ := json.Marshal(values)
+	cb, _ := json.Marshal(colors)
+	ib, _ := json.Marshal(ids)
+	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s,"ids":%s}`, lb, vb, cb, ib)
+}
 
 func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
 	tags, _ := h.queries.ListTags(r.Context())
