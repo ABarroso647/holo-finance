@@ -130,6 +130,7 @@ func main() {
 		r.Post("/api/rules", catHandler.CreateRule)
 
 		tagHandler := handlers.NewTagHandler(queries)
+		r.Get("/tags", tagHandler.Page)
 		r.Post("/api/transactions/{id}/tags", tagHandler.Add)
 		r.Delete("/api/transactions/{id}/tags/{tag_id}", tagHandler.Remove)
 		r.Post("/api/tags", tagHandler.Create)
