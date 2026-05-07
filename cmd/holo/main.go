@@ -85,6 +85,7 @@ func main() {
 
 		dashHandler := handlers.NewDashboardHandler(queries)
 		r.Get("/", dashHandler.Page)
+		r.Get("/api/dashboard/category-txns", dashHandler.CategoryTxns)
 
 		acctHandler := handlers.NewAccountsHandler(queries)
 		r.Get("/accounts", acctHandler.Page)

@@ -116,10 +116,7 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 										onClick: (_, elements) => {
 											if (!elements.length) return;
 											const idx = elements[0].index;
-											const id = data.ids[idx];
-											const from = data.date_from;
-											const to = data.date_to;
-											if (id) window.location.href = '/transactions?category_id=' + encodeURIComponent(id) + '&date_from=' + from + '&date_to=' + to;
+											filterDashTxns(data.ids[idx], data.labels[idx], data.date_from, data.date_to);
 										}
 									}
 								});
@@ -171,12 +168,15 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 			</div>
 		</div>
 		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
-			<div class="card" style="padding:0">
-				<div style="padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border)">Recent Transactions</div>
+			<div class="card" style="padding:0" id="dash-txn-card">
+				<div style="padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+					<span id="dash-txn-title">Recent Transactions</span>
+					<button id="dash-txn-clear" onclick="clearDashTxnFilter()" style="display:none;background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.75rem;padding:0">✕ Clear</button>
+				</div>
 				if len(recentTxns) == 0 {
 					<p style="color:var(--muted);font-size:0.85rem;padding:1rem">No transactions yet.</p>
 				} else {
-					<table>
+					<table id="dash-txn-table">
 						<tbody>
 							for _, txn := range recentTxns {
 								@dashTxnRow(txn)
@@ -184,7 +184,7 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 						</tbody>
 					</table>
 					<div style="padding:0.5rem 1rem;border-top:1px solid var(--border)">
-						<a href="/transactions" style="font-size:0.75rem;color:var(--muted)">View all →</a>
+						<a id="dash-txn-see-more" href="/transactions" style="font-size:0.75rem;color:var(--muted)">View all →</a>
 					</div>
 				}
 			</div>
@@ -216,6 +216,39 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				</div>
 			}
 		</div>
+		<script>
+			async function filterDashTxns(categoryID, categoryName, dateFrom, dateTo) {
+				const table = document.getElementById('dash-txn-table');
+				const title = document.getElementById('dash-txn-title');
+				const clearBtn = document.getElementById('dash-txn-clear');
+				const seeMore = document.getElementById('dash-txn-see-more');
+				if (!table) return;
+				title.textContent = categoryName;
+				clearBtn.style.display = '';
+				seeMore.href = '/transactions?category_id=' + encodeURIComponent(categoryID) + '&date_from=' + dateFrom + '&date_to=' + dateTo;
+				seeMore.textContent = 'See all →';
+				const tbody = table.querySelector('tbody');
+				tbody.innerHTML = '<tr><td colspan="4" style="padding:1rem;color:var(--muted);font-size:0.8rem">Loading…</td></tr>';
+				try {
+					const res = await fetch('/api/dashboard/category-txns?category_id=' + encodeURIComponent(categoryID) + '&date_from=' + dateFrom + '&date_to=' + dateTo);
+					if (res.ok) tbody.innerHTML = await res.text();
+				} catch(e) {
+					tbody.innerHTML = '<tr><td colspan="4" style="padding:1rem;color:var(--red);font-size:0.8rem">Error: ' + e.message + '</td></tr>';
+				}
+			}
+			function clearDashTxnFilter() {
+				const title = document.getElementById('dash-txn-title');
+				const clearBtn = document.getElementById('dash-txn-clear');
+				const seeMore = document.getElementById('dash-txn-see-more');
+				title.textContent = 'Recent Transactions';
+				clearBtn.style.display = 'none';
+				seeMore.href = '/transactions';
+				seeMore.textContent = 'View all →';
+				fetch('/api/dashboard/category-txns').then(r => r.text()).then(html => {
+					document.querySelector('#dash-txn-table tbody').innerHTML = html;
+				});
+			}
+		</script>
 	}
 }
 
@@ -224,6 +257,33 @@ func coalescePtr(a *string, b string) string {
 		return *a
 	}
 	return b
+}
+
+// DashTxnRowFragment is the exported version used by the CategoryTxns API handler for recent txns.
+templ DashTxnRowFragment(txn db.ListTransactionsRow) {
+	@dashTxnRow(txn)
+}
+
+// DashSearchTxnRowFragment renders a SearchTransactionsRow in the dashboard txn widget.
+templ DashSearchTxnRowFragment(txn db.SearchTransactionsRow) {
+	<tr>
+		<td style="color:var(--muted);font-size:0.75rem;white-space:nowrap;width:4.5rem">{ txn.Date[5:] }</td>
+		<td style="font-size:0.8rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{ txn.Name }</td>
+		<td style="font-size:0.75rem;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+			if txn.CategoryName != nil {
+				<span style="display:inline-flex;align-items:center;gap:4px;color:var(--muted)">
+					<span style={ fmt.Sprintf("width:6px;height:6px;border-radius:50%%;background:%s;flex-shrink:0", func() string {
+						if txn.CategoryColor != nil && *txn.CategoryColor != "" { return *txn.CategoryColor }
+						return "#64748b"
+					}()) }></span>
+					{ *txn.CategoryName }
+				</span>
+			}
+		</td>
+		<td style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:0.8rem">
+			@AmountCell(txn.Amount, txn.Currency)
+		</td>
+	</tr>
 }
 
 templ dashTxnRow(txn db.ListTransactionsRow) {

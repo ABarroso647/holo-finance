@@ -126,6 +126,47 @@ func buildDashCatsJSON(cats []db.GetSpendingByCategoryRow, dateFrom, dateTo stri
 	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s,"ids":%s,"date_from":%s,"date_to":%s}`, lb, vb, cb, ib, dfb, dtb)
 }
 
+// CategoryTxns returns dashboard transaction rows filtered by category and date range.
+// Used by the chart click-through to filter the Recent Transactions widget inline.
+func (h *DashboardHandler) CategoryTxns(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	q := r.URL.Query()
+	categoryID := q.Get("category_id")
+	dateFrom := q.Get("date_from")
+	dateTo := q.Get("date_to")
+
+	w.Header().Set("Content-Type", "text/html")
+
+	if categoryID == "" {
+		txns, _ := h.queries.ListTransactions(ctx, db.ListTransactionsParams{Limit: 10, Offset: 0})
+		for _, txn := range txns {
+			components.DashTxnRowFragment(txn).Render(ctx, w)
+		}
+		if len(txns) == 0 {
+			fmt.Fprintf(w, `<tr><td colspan="4" style="padding:1rem;color:var(--muted);font-size:0.8rem">No transactions</td></tr>`)
+		}
+		return
+	}
+
+	rows, _ := h.queries.SearchTransactions(ctx, db.SearchTransactionsParams{
+		Search:     "",
+		AccountID:  "",
+		CategoryID: categoryID,
+		DateFrom:   dateFrom,
+		DateTo:     dateTo,
+		Recurring:  "",
+		TagID:      "",
+		Limit:      15,
+		Offset:     0,
+	})
+	for _, row := range rows {
+		components.DashSearchTxnRowFragment(row).Render(ctx, w)
+	}
+	if len(rows) == 0 {
+		fmt.Fprintf(w, `<tr><td colspan="4" style="padding:1rem;color:var(--muted);font-size:0.8rem">No transactions</td></tr>`)
+	}
+}
+
 func toFloat64(v interface{}) float64 {
 	if v == nil {
 		return 0

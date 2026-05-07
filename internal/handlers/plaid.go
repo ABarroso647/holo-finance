@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
+	"strings"
 
 	"holo/internal/categorize"
 	"holo/internal/crypto"
@@ -29,16 +29,17 @@ func NewPlaidHandler(api *plaid.APIClient, queries *db.Queries) *PlaidHandler {
 }
 
 // redirectURI returns the OAuth redirect URI to use in link token requests.
-// PLAID_REDIRECT_URI env var takes priority; falls back to deriving from the request.
+// Uses X-Forwarded-Proto if set by a proxy; otherwise defaults to https for real
+// hostnames and http for localhost (Plaid sandbox allows http on localhost).
 func (h *PlaidHandler) redirectURI(r *http.Request) string {
-	if v := os.Getenv("PLAID_REDIRECT_URI"); v != "" {
-		return v
+	if scheme := r.Header.Get("X-Forwarded-Proto"); scheme != "" {
+		return scheme + "://" + r.Host + "/connect"
 	}
-	scheme := r.Header.Get("X-Forwarded-Proto")
-	if scheme == "" {
-		scheme = "https" // default to https — Plaid requires it for OAuth
+	host := r.Host
+	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1") {
+		return "http://" + host + "/connect"
 	}
-	return scheme + "://" + r.Host + "/connect"
+	return "https://" + host + "/connect"
 }
 
 func (h *PlaidHandler) LinkToken(w http.ResponseWriter, r *http.Request) {
