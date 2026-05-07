@@ -28,9 +28,11 @@ templ CardsPage(cards []CardSummary) {
 					hx-swap="innerHTML"
 					hx-indicator="#liab-spinner"
 					hx-disabled-elt="this"
+					hx-on:htmx:before-request="this.querySelector('.btn-label').textContent='Syncing…'"
+					hx-on:htmx:after-request="this.querySelector('.btn-label').textContent='Sync Payment Data'"
 				>
 					<span id="liab-spinner" class="htmx-indicator">⟳</span>
-					Sync Payment Data
+					<span class="btn-label">Sync Payment Data</span>
 				</button>
 				<span id="liab-result" style="font-size:0.8rem"></span>
 			</div>

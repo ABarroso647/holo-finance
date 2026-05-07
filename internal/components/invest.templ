@@ -153,7 +153,10 @@ templ investHoldings(holdings []db.ListAllHoldingsRow) {
 				hx-target="#invest-sync-result"
 				hx-swap="innerHTML"
 				hx-indicator="#invest-sync-result"
-			>Sync Holdings</button>
+				hx-disabled-elt="this"
+				hx-on:htmx:before-request="this.querySelector('.btn-label').textContent='Syncing…'"
+				hx-on:htmx:after-request="this.querySelector('.btn-label').textContent='Sync Holdings'"
+			><span class="btn-label">Sync Holdings</span></button>
 			<span id="invest-sync-result" style="font-size:0.78rem"></span>
 		</div>
 		if len(holdings) == 0 {

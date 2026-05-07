@@ -484,7 +484,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 			templ_7745c5c3_Var22 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"card\"><div style=\"display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem\"><h2 style=\"margin:0\">Investment Holdings</h2><button class=\"btn btn-ghost\" style=\"font-size:0.78rem;padding:0.2rem 0.6rem;margin-left:auto\" hx-post=\"/api/plaid/sync-investments\" hx-target=\"#invest-sync-result\" hx-swap=\"innerHTML\" hx-indicator=\"#invest-sync-result\">Sync Holdings</button> <span id=\"invest-sync-result\" style=\"font-size:0.78rem\"></span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<div class=\"card\"><div style=\"display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem\"><h2 style=\"margin:0\">Investment Holdings</h2><button class=\"btn btn-ghost\" style=\"font-size:0.78rem;padding:0.2rem 0.6rem;margin-left:auto\" hx-post=\"/api/plaid/sync-investments\" hx-target=\"#invest-sync-result\" hx-swap=\"innerHTML\" hx-indicator=\"#invest-sync-result\" hx-disabled-elt=\"this\" hx-on:htmx:before-request=\"this.querySelector('.btn-label').textContent='Syncing…'\" hx-on:htmx:after-request=\"this.querySelector('.btn-label').textContent='Sync Holdings'\"><span class=\"btn-label\">Sync Holdings</span></button> <span id=\"invest-sync-result\" style=\"font-size:0.78rem\"></span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -507,7 +507,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 			var templ_7745c5c3_Var23 string
 			templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", totalValue))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 169, Col: 106}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 172, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
 			if templ_7745c5c3_Err != nil {
@@ -526,7 +526,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 					var templ_7745c5c3_Var24 string
 					templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(*h.TickerSymbol)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 189, Col: 27}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 192, Col: 27}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 					if templ_7745c5c3_Err != nil {
@@ -536,7 +536,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(h.SecurityName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 191, Col: 26}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 194, Col: 26}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -555,7 +555,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 					var templ_7745c5c3_Var26 string
 					templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(h.SecurityName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 195, Col: 75}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 198, Col: 75}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 					if templ_7745c5c3_Err != nil {
@@ -573,7 +573,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(h.AccountName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 199, Col: 23}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 202, Col: 23}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -586,7 +586,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 				var templ_7745c5c3_Var28 string
 				templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(h.InstitutionName)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 200, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 203, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 				if templ_7745c5c3_Err != nil {
@@ -599,7 +599,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 				var templ_7745c5c3_Var29 string
 				templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.4g", h.Quantity))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 202, Col: 103}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 205, Col: 103}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 				if templ_7745c5c3_Err != nil {
@@ -613,7 +613,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 					var templ_7745c5c3_Var30 string
 					templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", *h.InstitutionPrice))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 205, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 208, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 					if templ_7745c5c3_Err != nil {
@@ -633,7 +633,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 					var templ_7745c5c3_Var31 string
 					templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", *h.InstitutionValue))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 212, Col: 52}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 215, Col: 52}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 					if templ_7745c5c3_Err != nil {
@@ -653,7 +653,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 					var templ_7745c5c3_Var32 string
 					templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", *h.CostBasis))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 219, Col: 45}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 222, Col: 45}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var32))
 					if templ_7745c5c3_Err != nil {
@@ -679,7 +679,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 						var templ_7745c5c3_Var33 string
 						templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", gain))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 228, Col: 72}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 231, Col: 72}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 						if templ_7745c5c3_Err != nil {
@@ -697,7 +697,7 @@ func investHoldings(holdings []db.ListAllHoldingsRow) templ.Component {
 						var templ_7745c5c3_Var34 string
 						templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", -gain))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 230, Col: 71}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/invest.templ`, Line: 233, Col: 71}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 						if templ_7745c5c3_Err != nil {
