@@ -31,12 +31,16 @@ func (q *Queries) DeleteCardRewardRatesForAccount(ctx context.Context, accountID
 const getBestRateForCategory = `-- name: GetBestRateForCategory :one
 SELECT r.reward_rate, r.account_id, r.notes
 FROM card_reward_rates r
-WHERE (r.category_id = ?1 OR r.category_id IS NULL)
+WHERE (r.category_id = ?1
+       OR r.category_id = (SELECT c.parent_id FROM categories c WHERE c.id = ?1)
+       OR r.category_id IS NULL)
   AND r.account_id IN (
     SELECT id FROM accounts WHERE type = 'credit'
   )
 ORDER BY
-    CASE WHEN r.category_id IS NOT NULL THEN 0 ELSE 1 END,
+    CASE WHEN r.category_id = ?1 THEN 0
+         WHEN r.category_id IS NOT NULL THEN 1
+         ELSE 2 END ASC,
     r.reward_rate DESC
 LIMIT 1
 `
