@@ -69,6 +69,12 @@ func main() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Permissions-Policy", "accelerometer=*, encrypted-media=*")
+			next.ServeHTTP(w, r)
+		})
+	})
 
 	r.Handle("/static/*", http.StripPrefix("/static/", http.FileServer(http.FS(holoStatic.FS))))
 
@@ -141,6 +147,7 @@ func main() {
 			r.Post("/api/plaid/relink-token", plaidHandler.RelinkToken)
 			r.Post("/api/plaid/relink-complete", plaidHandler.RelinkComplete)
 			r.Post("/api/plaid/disconnect", plaidHandler.DisconnectInstitution)
+			r.Post("/api/accounts/{id}/remove", plaidHandler.RemoveAccount)
 			r.Post("/api/plaid/webhook", plaidHandler.Webhook)
 		}
 	})
