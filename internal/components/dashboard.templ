@@ -6,7 +6,7 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool, salaryEstimates []db.SalaryEstimate) {
+templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool, salaryEstimates []db.SalaryEstimate, budgetProgress []BudgetProgress) {
 	{{ net := income - spending }}
 	{{ savingsRate := 0.0 }}
 	if income > 0 {
@@ -75,6 +75,30 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">this month</div>
 			</div>
 		</div>
+		if len(budgetProgress) > 0 {
+			<div class="card" style="margin-bottom:1rem">
+				<div style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">Budgets</div>
+				<div style="display:flex;flex-direction:column;gap:0.6rem">
+					for _, bp := range budgetProgress {
+						<div>
+							<div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.2rem">
+								<span style="display:flex;align-items:center;gap:0.35rem">
+									<span style={ fmt.Sprintf("width:8px;height:8px;border-radius:50%%;background:%s;flex-shrink:0", budgetColor(bp.CategoryColor)) }></span>
+									{ bp.CategoryName }
+								</span>
+								<span style="color:var(--muted)">{ fmt.Sprintf("$%.0f / $%.0f", bp.Spent, bp.MonthlyLimit) }</span>
+							</div>
+							<div style="background:var(--border);border-radius:4px;height:5px;overflow:hidden">
+								<div style={ fmt.Sprintf("width:%.0f%%;height:100%%;background:%s;border-radius:4px", minPct(bp.PctUsed*100, 100), budgetBarColor(bp.PctUsed)) }></div>
+							</div>
+						</div>
+					}
+				</div>
+				<div style="margin-top:0.5rem">
+					<a href="/settings#budgets" style="font-size:0.75rem;color:var(--accent)">Edit budgets →</a>
+				</div>
+			</div>
+		}
 		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem">
 			<div class="card">
 				<div style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem">Top Spending — { monthLabel }</div>

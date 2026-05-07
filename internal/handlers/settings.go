@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 
 	"holo/internal/components"
 	db "holo/internal/db/generated"
@@ -44,8 +45,9 @@ func (h *SettingsHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 	tags, _ := h.queries.ListTags(ctx)
 	spendByTag, _ := h.queries.GetSpendByTag(ctx, db.GetSpendByTagParams{DateFrom: "", DateTo: ""})
+	budgets, _ := h.queries.ListBudgets(ctx)
 
-	components.SettingsPage(accounts, categories, rules, model, cardRates, tags, spendByTag).Render(ctx, w)
+	components.SettingsPage(accounts, categories, rules, model, cardRates, tags, spendByTag, budgets).Render(ctx, w)
 }
 
 func (h *SettingsHandler) UpdateDisplayName(w http.ResponseWriter, r *http.Request) {
@@ -122,6 +124,37 @@ func (h *SettingsHandler) DeleteRule(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	if err := h.queries.DeleteRule(r.Context(), id); err != nil {
 		http.Error(w, "delete failed", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *SettingsHandler) UpsertBudget(w http.ResponseWriter, r *http.Request) {
+	categoryID := chi.URLParam(r, "category_id")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	limitStr := r.FormValue("monthly_limit")
+	limit, err := strconv.ParseFloat(limitStr, 64)
+	if err != nil || limit <= 0 {
+		http.Error(w, "invalid monthly_limit", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.queries.UpsertBudget(r.Context(), db.UpsertBudgetParams{
+		CategoryID:   categoryID,
+		MonthlyLimit: limit,
+	}); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (h *SettingsHandler) DeleteBudget(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if err := h.queries.DeleteBudget(r.Context(), id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)

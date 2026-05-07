@@ -10,7 +10,7 @@ type CardRatesData struct {
 	Rates   []db.ListCardRewardRatesForAccountRow
 }
 
-templ SettingsPage(accounts []db.ListAccountsWithInstitutionRow, categories []db.Category, rules []db.ListRulesRow, model string, cardRates []CardRatesData, tags []db.Tag, spendByTag []db.GetSpendByTagRow) {
+templ SettingsPage(accounts []db.ListAccountsWithInstitutionRow, categories []db.Category, rules []db.ListRulesRow, model string, cardRates []CardRatesData, tags []db.Tag, spendByTag []db.GetSpendByTagRow, budgets []db.ListBudgetsRow) {
 	@Layout("Settings") {
 		<div class="page-header">
 			<h1>Settings</h1>
@@ -18,6 +18,7 @@ templ SettingsPage(accounts []db.ListAccountsWithInstitutionRow, categories []db
 		<div style="display:flex;flex-direction:column;gap:1.5rem">
 			@settingsAccountNames(accounts)
 			@settingsCategories(categories)
+			@settingsBudgets(budgets, categories)
 			@settingsRules(rules)
 			@TagsSettingsSection(tags, spendByTag)
 			@settingsCardRates(cardRates, categories)
@@ -144,6 +145,75 @@ templ CategorySettingsRow(cat db.Category) {
 		<td></td>
 		<td></td>
 	</tr>
+}
+
+templ settingsBudgets(budgets []db.ListBudgetsRow, categories []db.Category) {
+	{{ budgetMap := make(map[string]db.ListBudgetsRow) }}
+	for _, b := range budgets {
+		{{ budgetMap[b.CategoryID] = b }}
+	}
+	<div id="budgets-section" class="card">
+		<h2 style="margin-bottom:0.25rem">Budgets</h2>
+		<p style="color:var(--muted);font-size:0.8rem;margin-bottom:1rem">
+			Set a monthly spending limit per category. Progress bars appear on the dashboard.
+		</p>
+		<table>
+			<thead>
+				<tr>
+					<th>Category</th>
+					<th style="text-align:right">Monthly Limit</th>
+					<th style="width:5rem"></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, cat := range DedupeCategories(categories) {
+					if cat.ParentID == nil {
+						{{ existing, hasBudget := budgetMap[cat.ID] }}
+						<tr id={ fmt.Sprintf("budget-row-%s", cat.ID) }>
+							<td style="font-size:0.85rem;display:flex;align-items:center;gap:0.4rem">
+								<span style={ fmt.Sprintf("width:10px;height:10px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", catColor(cat)) }></span>
+								{ cat.Name }
+							</td>
+							<td style="text-align:right">
+								<form
+									style="display:flex;gap:0.4rem;align-items:center;justify-content:flex-end"
+									hx-post={ fmt.Sprintf("/api/budgets/%s", cat.ID) }
+									hx-swap="none"
+								>
+									<input
+										type="number"
+										name="monthly_limit"
+										class="filter-input"
+										style="width:100px;text-align:right;font-size:0.85rem"
+										placeholder="0"
+										step="10"
+										min="1"
+										if hasBudget {
+											value={ fmt.Sprintf("%.0f", existing.MonthlyLimit) }
+										}
+									/>
+									<button type="submit" class="btn btn-ghost" style="font-size:0.8rem;padding:0.25rem 0.6rem">Save</button>
+								</form>
+							</td>
+							<td style="text-align:right">
+								if hasBudget {
+									<button
+										type="button"
+										class="btn btn-ghost"
+										style="font-size:0.75rem;padding:0.2rem 0.5rem;color:var(--red);border-color:var(--red)"
+										hx-delete={ fmt.Sprintf("/api/budgets/%s", existing.ID) }
+										hx-target={ fmt.Sprintf("#budget-row-%s", cat.ID) }
+										hx-swap="outerHTML"
+										hx-confirm={ fmt.Sprintf("Remove budget for %s?", cat.Name) }
+									>Remove</button>
+								}
+							</td>
+						</tr>
+					}
+				}
+			</tbody>
+		</table>
+	</div>
 }
 
 templ settingsRules(rules []db.ListRulesRow) {

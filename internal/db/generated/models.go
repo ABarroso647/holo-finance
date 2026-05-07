@@ -58,6 +58,13 @@ type Category struct {
 	Icon     *string `json:"icon"`
 }
 
+type CategoryBudget struct {
+	ID           string  `json:"id"`
+	CategoryID   string  `json:"category_id"`
+	MonthlyLimit float64 `json:"monthly_limit"`
+	CreatedAt    string  `json:"created_at"`
+}
+
 type CppCache struct {
 	Program   string    `json:"program"`
 	Cpp       float64   `json:"cpp"`
