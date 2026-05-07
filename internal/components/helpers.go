@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"net/url"
+	"strings"
 	"time"
 
 	db "holo/internal/db/generated"
@@ -165,6 +166,38 @@ func DedupeCategories(cats []db.Category) []db.Category {
 type SpendingRange struct {
 	Label string
 	URL   string
+}
+
+// RecurringItem holds display data for a single recurring merchant.
+type RecurringItem struct {
+	Merchant   string
+	MonthsSeen int64
+	AvgAmount  float64
+	MaxAmount  float64
+	MinAmount  float64
+	LastDate   string
+	FirstDate  string
+	YearlyEst  float64
+	IsAnnual   bool
+}
+
+func sanitizeID(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
+}
+
+func shortDate(s string) string {
+	if len(s) >= 10 {
+		return s[5:10]
+	}
+	return s
 }
 
 func spendingRanges() []SpendingRange {

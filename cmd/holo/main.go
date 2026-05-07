@@ -113,6 +113,11 @@ func main() {
 		r.Get("/invest", investHandler.Page)
 		r.Post("/api/invest/buffer", investHandler.UpdateBuffer)
 
+		recurringHandler := handlers.NewRecurringHandler(queries)
+		r.Get("/recurring", recurringHandler.Page)
+		r.Post("/api/recurring/exclude", recurringHandler.ExcludeMerchant)
+		r.Delete("/api/recurring/exclude", recurringHandler.IncludeMerchant)
+
 		exportHandler := handlers.NewExportHandler(queries)
 		r.Get("/api/export", exportHandler.Export)
 

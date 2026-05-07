@@ -9,6 +9,15 @@ import (
 	"context"
 )
 
+const excludeMerchantFromRecurring = `-- name: ExcludeMerchantFromRecurring :exec
+INSERT OR IGNORE INTO recurring_exclusions (merchant) VALUES (?)
+`
+
+func (q *Queries) ExcludeMerchantFromRecurring(ctx context.Context, merchant string) error {
+	_, err := q.db.ExecContext(ctx, excludeMerchantFromRecurring, merchant)
+	return err
+}
+
 const getAccountSpendSince = `-- name: GetAccountSpendSince :one
 SELECT CAST(COALESCE(SUM(amount), 0.0) AS REAL) as total
 FROM transactions
@@ -70,6 +79,51 @@ func (q *Queries) GetMonthlyFlows(ctx context.Context, date string) ([]GetMonthl
 	for rows.Next() {
 		var i GetMonthlyFlowsRow
 		if err := rows.Scan(&i.Month, &i.Income, &i.Spending); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getMonthlyRecurringFlows = `-- name: GetMonthlyRecurringFlows :many
+SELECT
+    strftime('%Y-%m', t.date) as month,
+    CAST(COALESCE(SUM(t.amount), 0.0) AS REAL) as total
+FROM transactions t
+WHERE t.is_recurring = 1
+  AND t.amount > 0
+  AND t.pending = 0
+  AND t.date >= ?
+  AND (t.category_id IS NULL
+      OR (t.category_id NOT LIKE 'TRANSFER%'
+          AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
+  AND COALESCE(t.merchant_name, t.name) NOT IN (SELECT merchant FROM recurring_exclusions)
+GROUP BY strftime('%Y-%m', t.date)
+ORDER BY month ASC
+`
+
+type GetMonthlyRecurringFlowsRow struct {
+	Month interface{} `json:"month"`
+	Total float64     `json:"total"`
+}
+
+func (q *Queries) GetMonthlyRecurringFlows(ctx context.Context, date string) ([]GetMonthlyRecurringFlowsRow, error) {
+	rows, err := q.db.QueryContext(ctx, getMonthlyRecurringFlows, date)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetMonthlyRecurringFlowsRow
+	for rows.Next() {
+		var i GetMonthlyRecurringFlowsRow
+		if err := rows.Scan(&i.Month, &i.Total); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -204,6 +258,68 @@ func (q *Queries) GetNetWorth(ctx context.Context) (interface{}, error) {
 	return coalesce, err
 }
 
+const getRecurringByMerchant = `-- name: GetRecurringByMerchant :many
+SELECT
+    COALESCE(t.merchant_name, t.name) as merchant,
+    CAST(COUNT(DISTINCT strftime('%Y-%m', t.date)) AS INTEGER) as months_seen,
+    CAST(AVG(t.amount) AS REAL) as avg_amount,
+    CAST(MAX(t.amount) AS REAL) as max_amount,
+    CAST(MIN(t.amount) AS REAL) as min_amount,
+    MAX(t.date) as last_date,
+    MIN(t.date) as first_date
+FROM transactions t
+WHERE t.is_recurring = 1
+  AND t.amount > 0
+  AND t.pending = 0
+  AND (t.category_id IS NULL
+      OR (t.category_id NOT LIKE 'TRANSFER%'
+          AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
+  AND COALESCE(t.merchant_name, t.name) NOT IN (SELECT merchant FROM recurring_exclusions)
+GROUP BY COALESCE(t.merchant_name, t.name)
+ORDER BY avg_amount DESC
+`
+
+type GetRecurringByMerchantRow struct {
+	Merchant   string      `json:"merchant"`
+	MonthsSeen int64       `json:"months_seen"`
+	AvgAmount  float64     `json:"avg_amount"`
+	MaxAmount  float64     `json:"max_amount"`
+	MinAmount  float64     `json:"min_amount"`
+	LastDate   interface{} `json:"last_date"`
+	FirstDate  interface{} `json:"first_date"`
+}
+
+func (q *Queries) GetRecurringByMerchant(ctx context.Context) ([]GetRecurringByMerchantRow, error) {
+	rows, err := q.db.QueryContext(ctx, getRecurringByMerchant)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetRecurringByMerchantRow
+	for rows.Next() {
+		var i GetRecurringByMerchantRow
+		if err := rows.Scan(
+			&i.Merchant,
+			&i.MonthsSeen,
+			&i.AvgAmount,
+			&i.MaxAmount,
+			&i.MinAmount,
+			&i.LastDate,
+			&i.FirstDate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getRecurringSpendForPeriod = `-- name: GetRecurringSpendForPeriod :one
 SELECT CAST(COALESCE(SUM(t.amount), 0.0) AS REAL) as total
 FROM transactions t
@@ -215,6 +331,7 @@ WHERE t.is_recurring = 1
   AND (t.category_id IS NULL
       OR (t.category_id NOT LIKE 'TRANSFER%'
           AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
+  AND COALESCE(t.merchant_name, t.name) NOT IN (SELECT merchant FROM recurring_exclusions)
 `
 
 type GetRecurringSpendForPeriodParams struct {
@@ -463,6 +580,42 @@ func (q *Queries) GetTopCategoriesForAccount(ctx context.Context, arg GetTopCate
 			return nil, err
 		}
 		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const includeMerchantInRecurring = `-- name: IncludeMerchantInRecurring :exec
+DELETE FROM recurring_exclusions WHERE merchant = ?
+`
+
+func (q *Queries) IncludeMerchantInRecurring(ctx context.Context, merchant string) error {
+	_, err := q.db.ExecContext(ctx, includeMerchantInRecurring, merchant)
+	return err
+}
+
+const listRecurringExclusions = `-- name: ListRecurringExclusions :many
+SELECT merchant FROM recurring_exclusions ORDER BY merchant
+`
+
+func (q *Queries) ListRecurringExclusions(ctx context.Context) ([]string, error) {
+	rows, err := q.db.QueryContext(ctx, listRecurringExclusions)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []string
+	for rows.Next() {
+		var merchant string
+		if err := rows.Scan(&merchant); err != nil {
+			return nil, err
+		}
+		items = append(items, merchant)
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
