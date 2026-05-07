@@ -18,9 +18,11 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 					hx-swap="innerHTML"
 					hx-indicator="#sync-spinner"
 					hx-disabled-elt="this"
+					hx-on:htmx:before-request="this.querySelector('.btn-label').textContent='Syncing…'"
+					hx-on:htmx:after-request="this.querySelector('.btn-label').textContent='Sync'"
 				>
 					<span id="sync-spinner" class="htmx-indicator">⟳</span>
-					Sync
+					<span class="btn-label">Sync</span>
 				</button>
 				<button
 					class="btn btn-primary"
@@ -29,9 +31,11 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 					hx-swap="innerHTML"
 					hx-indicator="#cat-spinner"
 					hx-disabled-elt="this"
+					hx-on:htmx:before-request="this.querySelector('.btn-label').textContent='Categorizing…'"
+					hx-on:htmx:after-request="this.querySelector('.btn-label').textContent='Categorize'"
 				>
 					<span id="cat-spinner" class="htmx-indicator">⟳</span>
-					Categorize
+					<span class="btn-label">Categorize</span>
 				</button>
 			</div>
 		</div>
