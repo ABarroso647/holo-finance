@@ -46,6 +46,19 @@ templ AccountsPage(accounts []db.ListAccountsWithInstitutionRow) {
 					}
 				}
 			}
+			async function removeAccount(accountID, name) {
+				if (!confirm('Remove ' + name + '? This will delete all transactions for this account locally.')) return;
+				const btn = document.getElementById('remove-acct-btn-' + accountID);
+				btn.disabled = true;
+				const res = await fetch('/api/accounts/' + accountID + '/remove', { method: 'POST' });
+				if (res.ok) {
+					document.getElementById('acct-row-' + accountID).remove();
+					document.getElementById('acct-detail-' + accountID).remove();
+				} else {
+					btn.disabled = false;
+					alert('Error: ' + await res.text());
+				}
+			}
 			async function disconnectInstitution(institutionID, name) {
 				if (!confirm('Remove ' + name + '? This will delete all transactions and accounts for this institution.')) return;
 				const btn = document.getElementById('disconnect-btn-' + institutionID);
@@ -145,11 +158,12 @@ templ accountsGrouped(accounts []db.ListAccountsWithInstitutionRow) {
 							<th>Currency</th>
 							<th style="text-align:right">Current Balance</th>
 							<th style="text-align:right">Available</th>
+							<th></th>
 						</tr>
 					</thead>
 					<tbody>
 						for _, acct := range groups[inst] {
-							<tr class="acct-row" onclick={ templ.ComponentScript{Call: fmt.Sprintf("toggleAcct('%s', this)", acct.ID)} }>
+							<tr class="acct-row" id={ fmt.Sprintf("acct-row-%s", acct.ID) } onclick={ templ.ComponentScript{Call: fmt.Sprintf("toggleAcct('%s', this)", acct.ID)} }>
 								<td>
 									<div style="display:flex;align-items:center;gap:6px">
 										<span class="acct-chevron">▶</span>
@@ -184,9 +198,18 @@ templ accountsGrouped(accounts []db.ListAccountsWithInstitutionRow) {
 										—
 									}
 								</td>
+								<td style="text-align:right;padding-right:0.75rem" onclick="event.stopPropagation()">
+									<button
+										type="button"
+										id={ fmt.Sprintf("remove-acct-btn-%s", acct.ID) }
+										class="btn btn-ghost"
+										style="font-size:0.7rem;padding:0.15rem 0.5rem;color:var(--red);border-color:var(--red)"
+										onclick={ templ.JSFuncCall("removeAccount", acct.ID, acct.Name) }
+									>Remove</button>
+								</td>
 							</tr>
 							<tr id={ fmt.Sprintf("acct-detail-%s", acct.ID) } class="acct-detail-row" style="display:none">
-								<td colspan="5">
+								<td colspan="6">
 									<div id={ fmt.Sprintf("acct-detail-inner-%s", acct.ID) } class="acct-detail-inner"></div>
 								</td>
 							</tr>

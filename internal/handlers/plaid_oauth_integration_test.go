@@ -76,12 +76,13 @@ func TestRedirectURI_RealHostDefaultsToHTTPS(t *testing.T) {
 	assert.Equal(t, "https://holo.abarroso.ca/connect", h.redirectURI(req))
 }
 
-// TestRedirectURI_LocalhostUsesHTTP verifies localhost uses http (Plaid sandbox allows it).
-func TestRedirectURI_LocalhostUsesHTTP(t *testing.T) {
+// TestRedirectURI_LocalhostReturnsEmpty verifies localhost returns no redirect URI so
+// Classic auth banks (Simplii etc.) work locally without needing localhost registered in Plaid Dashboard.
+func TestRedirectURI_LocalhostReturnsEmpty(t *testing.T) {
 	h := newTestPlaidHandler(t)
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Host = "localhost:8080"
-	assert.Equal(t, "http://localhost:8080/connect", h.redirectURI(req))
+	assert.Equal(t, "", h.redirectURI(req))
 }
 
 // TestRedirectURI_ProxyHeaderWins verifies X-Forwarded-Proto is respected.

@@ -14,6 +14,7 @@ import (
 	"holo/internal/crypto"
 	db "holo/internal/db/generated"
 	plaidclient "holo/internal/plaid"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	plaid "github.com/plaid/plaid-go/v36/plaid"
 )
@@ -29,15 +30,16 @@ func NewPlaidHandler(api *plaid.APIClient, queries *db.Queries) *PlaidHandler {
 }
 
 // redirectURI returns the OAuth redirect URI to use in link token requests.
-// Uses X-Forwarded-Proto if set by a proxy; otherwise defaults to https for real
-// hostnames and http for localhost (Plaid sandbox allows http on localhost).
+// Returns empty string for localhost — redirect_uri is optional and only needed for
+// OAuth institutions. Not setting it on localhost avoids needing http://localhost
+// registered in the Plaid Dashboard, so Classic auth banks work locally.
 func (h *PlaidHandler) redirectURI(r *http.Request) string {
-	if scheme := r.Header.Get("X-Forwarded-Proto"); scheme != "" {
-		return scheme + "://" + r.Host + "/connect"
-	}
 	host := r.Host
 	if strings.HasPrefix(host, "localhost") || strings.HasPrefix(host, "127.0.0.1") {
-		return "http://" + host + "/connect"
+		return ""
+	}
+	if scheme := r.Header.Get("X-Forwarded-Proto"); scheme != "" {
+		return scheme + "://" + host + "/connect"
 	}
 	return "https://" + host + "/connect"
 }
@@ -54,8 +56,10 @@ func (h *PlaidHandler) LinkToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	redirectURI := h.redirectURI(r)
-	req.SetRedirectUri(redirectURI)
-	log.Printf("plaid: link token redirect_uri=%s", redirectURI)
+	if redirectURI != "" {
+		req.SetRedirectUri(redirectURI)
+	}
+	log.Printf("plaid: link token redirect_uri=%q", redirectURI)
 
 	resp, _, err := h.api.PlaidApi.LinkTokenCreate(r.Context()).LinkTokenCreateRequest(*req).Execute()
 	if err != nil {
@@ -332,8 +336,10 @@ func (h *PlaidHandler) RelinkToken(w http.ResponseWriter, r *http.Request) {
 	})
 
 	redirectURI := h.redirectURI(r)
-	req.SetRedirectUri(redirectURI)
-	log.Printf("plaid: relink token redirect_uri=%s", redirectURI)
+	if redirectURI != "" {
+		req.SetRedirectUri(redirectURI)
+	}
+	log.Printf("plaid: relink token redirect_uri=%q", redirectURI)
 
 	resp, _, err := h.api.PlaidApi.LinkTokenCreate(r.Context()).LinkTokenCreateRequest(*req).Execute()
 	if err != nil {
@@ -408,10 +414,11 @@ func (h *PlaidHandler) DisconnectInstitution(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Tell Plaid to revoke access — best-effort, don't block on error.
+	// Revoke access on Plaid's side. Log failure but still delete locally — the
+	// user can always re-link to get a fresh item if the old one lingers on Plaid.
 	req := plaid.NewItemRemoveRequest(token)
 	if _, _, err := h.api.PlaidApi.ItemRemove(r.Context()).ItemRemoveRequest(*req).Execute(); err != nil {
-		log.Printf("plaid ItemRemove for %s: %v (continuing with local delete)", inst.Name, err)
+		log.Printf("plaid ItemRemove for %s: %v (proceeding with local delete)", inst.Name, err)
 	}
 
 	// Delete in dependency order: transactions → accounts → institution.
@@ -431,6 +438,29 @@ func (h *PlaidHandler) DisconnectInstitution(w http.ResponseWriter, r *http.Requ
 	log.Printf("disconnected institution %s (%s)", inst.Name, inst.ID)
 	w.Header().Set("Content-Type", "text/html")
 	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">✓ Disconnected</span>`)
+}
+
+// RemoveAccount deletes a single account and its transactions from the local DB.
+// The Plaid item remains active — use DisconnectInstitution to remove it entirely.
+func (h *PlaidHandler) RemoveAccount(w http.ResponseWriter, r *http.Request) {
+	accountID := chi.URLParam(r, "id")
+	if accountID == "" {
+		http.Error(w, "account id required", http.StatusBadRequest)
+		return
+	}
+	if _, err := h.queries.GetAccountByID(r.Context(), accountID); err != nil {
+		http.Error(w, "account not found", http.StatusNotFound)
+		return
+	}
+	if err := h.queries.DeleteTransactionsByAccount(r.Context(), accountID); err != nil {
+		http.Error(w, "delete transactions: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := h.queries.DeleteAccount(r.Context(), accountID); err != nil {
+		http.Error(w, "delete account: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 // deduplicates retried webhooks via SHA-256 hash as ID (INSERT OR IGNORE).

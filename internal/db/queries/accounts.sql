@@ -24,6 +24,12 @@ SELECT * FROM accounts WHERE id = ?;
 -- name: UpdateAccountDisplayName :exec
 UPDATE accounts SET display_name = ? WHERE id = ?;
 
+-- name: DeleteAccount :exec
+DELETE FROM accounts WHERE id = ?;
+
+-- name: DeleteTransactionsByAccount :exec
+DELETE FROM transactions WHERE account_id = ?;
+
 -- name: ListAccountsWithInstitution :many
 SELECT a.*, i.name as institution_name
 FROM accounts a

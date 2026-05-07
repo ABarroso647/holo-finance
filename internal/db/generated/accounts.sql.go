@@ -10,6 +10,24 @@ import (
 	"time"
 )
 
+const deleteAccount = `-- name: DeleteAccount :exec
+DELETE FROM accounts WHERE id = ?
+`
+
+func (q *Queries) DeleteAccount(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteAccount, id)
+	return err
+}
+
+const deleteTransactionsByAccount = `-- name: DeleteTransactionsByAccount :exec
+DELETE FROM transactions WHERE account_id = ?
+`
+
+func (q *Queries) DeleteTransactionsByAccount(ctx context.Context, accountID string) error {
+	_, err := q.db.ExecContext(ctx, deleteTransactionsByAccount, accountID)
+	return err
+}
+
 const getAccountByID = `-- name: GetAccountByID :one
 SELECT id, institution_id, plaid_account_id, name, official_name, display_name, type, subtype, currency, current_balance, available_balance, last_synced_at, created_at FROM accounts WHERE id = ?
 `
