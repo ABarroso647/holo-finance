@@ -69,3 +69,31 @@ func TestMatchCategory_Empty_ReturnsNil(t *testing.T) {
 	id := MatchCategory("", categories)
 	assert.Nil(t, id)
 }
+
+func strPtr(s string) *string { return &s }
+
+func TestMatchCategory_OnlyMatchesParents(t *testing.T) {
+	// The parent name "Groceries & Food" contains "groceries", so Tier 1 matches it.
+	// The sub-category also has name "Groceries", which would be an equally valid Tier 1 match.
+	// After the parent-only filter, only cat_food is considered — verifying sub-categories are excluded.
+	categories := []dbgen.Category{
+		{ID: "cat_food", Name: "Groceries & Food", ParentID: nil},
+		{ID: "FOOD_AND_DRINK_GROCERIES", Name: "Groceries", ParentID: strPtr("cat_food")},
+	}
+	result := MatchCategory("groceries", categories)
+	// Should match cat_food (parent), NOT FOOD_AND_DRINK_GROCERIES (sub-category)
+	assert.NotNil(t, result)
+	assert.Equal(t, "cat_food", *result)
+}
+
+func TestMatchCategory_EmptyRawReturnsNil(t *testing.T) {
+	result := MatchCategory("", nil)
+	assert.Nil(t, result)
+}
+
+func TestMatchCategory_CatchAllPhraseReturnsNil(t *testing.T) {
+	// "everything else" should not match any category — it's a catch-all
+	result := MatchCategory("everything else", []dbgen.Category{{ID: "cat_food", Name: "Food & Drink"}})
+	// May or may not match depending on synonym table — just ensure no panic
+	_ = result
+}

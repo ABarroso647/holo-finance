@@ -90,12 +90,22 @@ func MatchCategory(raw string, categories []db.Category) *string {
 		return nil
 	}
 
+	// Only match against parent categories. Card rates are configured at the
+	// parent level (cat_food, cat_travel, etc.) — sub-categories (Plaid) are
+	// too granular and would break the reward rate lookup subquery.
+	var parents []db.Category
+	for _, c := range categories {
+		if c.ParentID == nil {
+			parents = append(parents, c)
+		}
+	}
+
 	normRaw := normalize(raw)
 	rawWords := strings.Fields(normRaw)
 
 	var bestT1 *string
 	bestT1Len := 0
-	for _, cat := range categories {
+	for _, cat := range parents {
 		normCat := normalize(cat.Name)
 		if normCat == "" {
 			continue
@@ -133,7 +143,7 @@ func MatchCategory(raw string, categories []db.Category) *string {
 
 	var bestT2 *string
 	bestT2Len := 0
-	for _, cat := range categories {
+	for _, cat := range parents {
 		normCat := normalize(cat.Name)
 		for frag := range candidateFrags {
 			if strings.Contains(normCat, frag) {
