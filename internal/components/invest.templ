@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 	db "holo/internal/db/generated"
+	"holo/internal/invest"
 )
 
 type MonthFlow struct {
@@ -14,13 +15,26 @@ type MonthFlow struct {
 }
 
 type InvestData struct {
-	Months      []MonthFlow
-	AvgIncome   float64
-	AvgSpending float64
-	AvgSurplus  float64
-	Buffer      float64
-	Recommended float64
-	Holdings    []db.ListAllHoldingsRow
+	Months          []MonthFlow
+	AvgIncome       float64
+	AvgSpending     float64
+	AvgSurplus      float64
+	Buffer          float64
+	Recommended     float64
+	Holdings        []db.ListAllHoldingsRow
+	AnnualIncome    float64
+	Province        string
+	RRSPRoom        float64
+	TFSARoom        float64
+	TFSARoomDate    string
+	TFSACurrentRoom float64
+	FHSAEnabled     bool
+	FHSARoom        float64
+	FHSARoomDate    string
+	FHSACurrentRoom float64
+	SavingsPct      float64
+	Recommendation  invest.Recommendation
+	YearlyPlan      invest.YearlyContributionPlan
 }
 
 templ InvestPage(d InvestData) {
@@ -31,8 +45,11 @@ templ InvestPage(d InvestData) {
 		<div style="display:flex;flex-direction:column;gap:1.5rem">
 			@investSurplusTiles(d)
 			@investRecommendation(d)
+			@investRRSPTFSARecommendation(d)
+			@investContributionTargets(d)
 			@investMonthlyTable(d.Months)
 			@investHoldings(d.Holdings)
+			@investSetupForm(d)
 		</div>
 	}
 }
@@ -103,6 +120,117 @@ templ investRecommendation(d InvestData) {
 				</form>
 			</div>
 		</div>
+	</div>
+}
+
+templ investRRSPTFSARecommendation(d InvestData) {
+	<div class="card">
+		<h2 style="margin-bottom:1rem">Investment Recommendation</h2>
+		if len(d.Recommendation.MissingInputs) > 0 {
+			<p style="color:var(--muted);font-size:0.88rem">
+				Set your annual income in the <a href="#invest-setup" style="color:var(--accent)">Investment Setup</a> section below to get a personalized RRSP vs TFSA recommendation.
+			</p>
+		} else {
+			<div style="display:flex;flex-direction:column;gap:1rem">
+				<div style="display:flex;gap:2rem;flex-wrap:wrap;align-items:center">
+					<div>
+						<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Marginal Tax Rate</div>
+						<div style="font-size:1.4rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("%.1f%%", d.Recommendation.MarginalRate*100) }</div>
+						<div style="font-size:0.75rem;color:var(--muted)">{ d.Province } · { fmt.Sprintf("$%.0f", d.AnnualIncome) } income</div>
+					</div>
+					<div>
+						<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Available to Invest</div>
+						<div style="font-size:1.4rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("$%.0f/mo", d.Recommendation.Investable) }</div>
+						<div style="font-size:0.75rem;color:var(--muted)">surplus { fmt.Sprintf("$%.0f", d.AvgSurplus) } − buffer { fmt.Sprintf("$%.0f", d.Buffer) }</div>
+					</div>
+				</div>
+				<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+					<div style="background:var(--surface2,var(--bg));border:1px solid var(--border);border-radius:0.5rem;padding:1rem">
+						<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">RRSP</div>
+						if d.Recommendation.RRSPAmount > 0 {
+							<div style="font-size:1.8rem;font-weight:700;color:var(--accent)">{ fmt.Sprintf("$%.0f", d.Recommendation.RRSPAmount) }</div>
+							<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">per month</div>
+							<div style="font-size:0.8rem;color:var(--green);margin-top:0.5rem;font-weight:600">
+								Est. annual tax refund: { fmt.Sprintf("$%.0f", d.Recommendation.RRSPTaxSaving) }
+							</div>
+						} else {
+							<div style="font-size:1.8rem;font-weight:700;color:var(--muted)">$0</div>
+							<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">per month</div>
+						}
+					</div>
+					<div style="background:var(--surface2,var(--bg));border:1px solid var(--border);border-radius:0.5rem;padding:1rem">
+						<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">TFSA</div>
+						if d.Recommendation.TFSAAmount > 0 {
+							<div style="font-size:1.8rem;font-weight:700;color:var(--accent)">{ fmt.Sprintf("$%.0f", d.Recommendation.TFSAAmount) }</div>
+							<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">per month</div>
+							<div style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem">Tax-free growth</div>
+						} else {
+							<div style="font-size:1.8rem;font-weight:700;color:var(--muted)">$0</div>
+							<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">per month</div>
+						}
+					</div>
+				</div>
+				if d.Recommendation.Rationale != "" {
+					<p style="font-size:0.85rem;color:var(--muted);border-left:3px solid var(--accent);padding-left:0.75rem;margin:0">
+						{ d.Recommendation.Rationale }
+					</p>
+				}
+				<div>
+					<a href="#invest-setup" style="font-size:0.82rem;color:var(--accent)">Configure income &amp; room →</a>
+				</div>
+			</div>
+		}
+	</div>
+}
+
+templ investContributionTargets(d InvestData) {
+	if d.AnnualIncome > 0 {
+		<div class="card">
+			<h2 style="margin-bottom:0.25rem">Contribution Targets</h2>
+			<p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem">
+				To hit { fmt.Sprintf("%.0f%%", d.SavingsPct) } savings by Dec 31
+			</p>
+			<div style="display:flex;flex-direction:column;gap:0.75rem">
+				<div style="display:flex;align-items:baseline;gap:0.5rem">
+					<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;width:110px">Monthly target</div>
+					<div style="font-size:1.5rem;font-weight:700;color:var(--accent)">{ fmt.Sprintf("$%.0f", d.YearlyPlan.MonthlyTarget) }</div>
+					<div style="font-size:0.78rem;color:var(--muted)">{ fmt.Sprintf("(%d months remaining)", d.YearlyPlan.MonthsRemaining) }</div>
+				</div>
+				<div style="border-top:1px solid var(--border);padding-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem">
+					@investAccountTargetRow("RRSP", d.YearlyPlan.RRSPMonthly, d.YearlyPlan.RRSPRoom, false)
+					@investAccountTargetRow("TFSA", d.YearlyPlan.TFSAMonthly, d.YearlyPlan.TFSARoom, false)
+					if d.FHSAEnabled {
+						@investAccountTargetRow("FHSA", d.YearlyPlan.FHSAMonthly, d.YearlyPlan.FHSARoom, true)
+					}
+				</div>
+				<div style="border-top:1px solid var(--border);padding-top:0.75rem;font-size:0.82rem;color:var(--muted)">
+					At this rate, you'll contribute
+					<span style="color:var(--text);font-weight:600">{ fmt.Sprintf("$%.0f/yr", d.YearlyPlan.MonthlyTarget*12) }</span>
+					toward your
+					<span style="color:var(--text);font-weight:600">{ fmt.Sprintf("$%.0f", d.YearlyPlan.TargetAnnualSavings) } annual savings goal</span>
+					({ fmt.Sprintf("%.0f%%", d.SavingsPct) } of { fmt.Sprintf("$%.0f", d.AnnualIncome) } income).
+				</div>
+			</div>
+		</div>
+	}
+}
+
+templ investAccountTargetRow(label string, monthly float64, room float64, isFHSA bool) {
+	<div style="display:flex;align-items:center;gap:1rem;font-size:0.88rem">
+		<div style="width:60px;font-weight:600;color:var(--text)">{ label }</div>
+		if monthly > 0 {
+			<div style="color:var(--accent);font-weight:600;min-width:80px">{ fmt.Sprintf("$%.0f/mo", monthly) }</div>
+		} else {
+			<div style="color:var(--muted);min-width:80px">$0/mo</div>
+		}
+		if room > 0 {
+			<div style="font-size:0.78rem;color:var(--muted)">[room: { fmt.Sprintf("$%.0f", room) } remaining]</div>
+		} else {
+			<div style="font-size:0.78rem;color:var(--muted)">[no room]</div>
+		}
+		if isFHSA {
+			<div style="font-size:0.73rem;color:var(--muted)">deduction + tax-free growth</div>
+		}
 	</div>
 }
 
@@ -239,6 +367,212 @@ templ investHoldings(holdings []db.ListAllHoldingsRow) {
 			</table>
 		}
 	</div>
+}
+
+templ investSetupForm(d InvestData) {
+	<div class="card" id="invest-setup">
+		<h2 style="margin-bottom:0.25rem">Investment Setup</h2>
+		<p style="font-size:0.82rem;color:var(--muted);margin-bottom:1rem">Configure your income and contribution room to enable personalized RRSP vs TFSA recommendations.</p>
+		<form
+			hx-post="/api/invest/settings"
+			hx-target="#invest-settings-result"
+			hx-swap="innerHTML"
+			style="display:flex;flex-direction:column;gap:1rem;max-width:480px"
+		>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Annual Gross Income</label>
+				<div style="display:flex;align-items:center;gap:0.5rem">
+					<span style="font-size:0.85rem;color:var(--muted)">$</span>
+					<input
+						type="number"
+						name="invest_annual_income"
+						class="filter-input"
+						style="width:160px"
+						min="0"
+						step="1000"
+						placeholder="e.g. 95000"
+						if d.AnnualIncome > 0 {
+							value={ fmt.Sprintf("%.0f", d.AnnualIncome) }
+						}
+					/>
+				</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Savings Target (%)</label>
+				<div style="display:flex;align-items:center;gap:0.5rem">
+					<input
+						type="number"
+						name="invest_savings_pct"
+						class="filter-input"
+						style="width:100px"
+						min="1"
+						max="100"
+						step="1"
+						value={ fmt.Sprintf("%.0f", d.SavingsPct) }
+					/>
+					<span style="font-size:0.85rem;color:var(--muted)">% of pre-tax income</span>
+				</div>
+				<div style="font-size:0.73rem;color:var(--muted)">Target percentage of annual income to save (default 20%).</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Province / Territory</label>
+				<select name="invest_province" class="filter-input" style="width:200px">
+					@investProvinceOption("AB", "Alberta", d.Province)
+					@investProvinceOption("BC", "British Columbia", d.Province)
+					@investProvinceOption("MB", "Manitoba", d.Province)
+					@investProvinceOption("NB", "New Brunswick", d.Province)
+					@investProvinceOption("NL", "Newfoundland & Labrador", d.Province)
+					@investProvinceOption("NS", "Nova Scotia", d.Province)
+					@investProvinceOption("NT", "Northwest Territories", d.Province)
+					@investProvinceOption("NU", "Nunavut", d.Province)
+					@investProvinceOption("ON", "Ontario", d.Province)
+					@investProvinceOption("PE", "Prince Edward Island", d.Province)
+					@investProvinceOption("QC", "Quebec", d.Province)
+					@investProvinceOption("SK", "Saskatchewan", d.Province)
+					@investProvinceOption("YT", "Yukon", d.Province)
+				</select>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">RRSP Contribution Room</label>
+				<div style="display:flex;align-items:center;gap:0.5rem">
+					<span style="font-size:0.85rem;color:var(--muted)">$</span>
+					<input
+						type="number"
+						name="invest_rrsp_room"
+						class="filter-input"
+						style="width:160px"
+						min="0"
+						step="500"
+						placeholder="e.g. 30000"
+						if d.RRSPRoom > 0 {
+							value={ fmt.Sprintf("%.0f", d.RRSPRoom) }
+						}
+					/>
+				</div>
+				<div style="font-size:0.73rem;color:var(--muted)">Find this on your CRA My Account or NOA.</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">TFSA Contribution Room</label>
+				<div style="display:flex;align-items:center;gap:0.5rem">
+					<span style="font-size:0.85rem;color:var(--muted)">$</span>
+					<input
+						type="number"
+						name="invest_tfsa_room"
+						class="filter-input"
+						style="width:160px"
+						min="0"
+						step="500"
+						placeholder="e.g. 40000"
+						if d.TFSARoom > 0 {
+							value={ fmt.Sprintf("%.0f", d.TFSARoom) }
+						}
+					/>
+				</div>
+				<div style="font-size:0.73rem;color:var(--muted)">Cumulative room (check CRA My Account for your exact amount).</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">TFSA Room — as of date</label>
+				<input
+					type="date"
+					name="invest_tfsa_room_date"
+					class="filter-input"
+					style="width:180px"
+					if d.TFSARoomDate != "" {
+						value={ d.TFSARoomDate }
+					}
+				/>
+				<div style="font-size:0.73rem;color:var(--muted)">
+					When did you measure your TFSA room? We'll add $7,000 for each Jan 1 since then.
+					if d.TFSACurrentRoom != d.TFSARoom && d.TFSARoom > 0 {
+						<span style="color:var(--accent)"> (current: { fmt.Sprintf("$%.0f", d.TFSACurrentRoom) })</span>
+					}
+				</div>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">FHSA (First Home Savings Account)</label>
+				<div style="display:flex;align-items:center;gap:0.75rem">
+					<input
+						type="checkbox"
+						name="invest_fhsa_enabled"
+						value="1"
+						id="fhsa-enabled"
+						if d.FHSAEnabled {
+							checked
+						}
+					/>
+					<label for="fhsa-enabled" style="font-size:0.85rem;color:var(--text)">I am eligible for an FHSA (first-time home buyer)</label>
+				</div>
+				<div style="font-size:0.73rem;color:var(--muted)">FHSA offers both a tax deduction and tax-free growth — $8,000/yr, $40,000 lifetime max.</div>
+			</div>
+			if d.FHSAEnabled {
+				<div style="display:flex;flex-direction:column;gap:0.35rem;padding-left:1rem;border-left:2px solid var(--accent)">
+					<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">FHSA Contribution Room</label>
+					<div style="display:flex;align-items:center;gap:0.5rem">
+						<span style="font-size:0.85rem;color:var(--muted)">$</span>
+						<input
+							type="number"
+							name="invest_fhsa_room"
+							class="filter-input"
+							style="width:160px"
+							min="0"
+							max="40000"
+							step="500"
+							placeholder="e.g. 16000"
+							if d.FHSARoom > 0 {
+								value={ fmt.Sprintf("%.0f", d.FHSARoom) }
+							}
+						/>
+					</div>
+					<div style="display:flex;flex-direction:column;gap:0.35rem">
+						<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">FHSA Room — as of date</label>
+						<input
+							type="date"
+							name="invest_fhsa_room_date"
+							class="filter-input"
+							style="width:180px"
+							if d.FHSARoomDate != "" {
+								value={ d.FHSARoomDate }
+							}
+						/>
+						<div style="font-size:0.73rem;color:var(--muted)">
+							When did you measure your FHSA room? We'll add $8,000 for each Jan 1 since then (max $40,000 lifetime).
+							if d.FHSACurrentRoom != d.FHSARoom && d.FHSARoom > 0 {
+								<span style="color:var(--accent)"> (current: { fmt.Sprintf("$%.0f", d.FHSACurrentRoom) })</span>
+							}
+						</div>
+					</div>
+				</div>
+			}
+			<div style="display:flex;flex-direction:column;gap:0.35rem">
+				<label style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.04em">Monthly Cash Buffer</label>
+				<div style="display:flex;align-items:center;gap:0.5rem">
+					<span style="font-size:0.85rem;color:var(--muted)">$</span>
+					<input
+						type="number"
+						name="invest_buffer"
+						class="filter-input"
+						style="width:160px"
+						min="0"
+						step="50"
+						value={ fmt.Sprintf("%.0f", d.Buffer) }
+					/>
+				</div>
+				<div style="font-size:0.73rem;color:var(--muted)">Reserve kept in cash before any contributions.</div>
+			</div>
+			<div style="display:flex;align-items:center;gap:1rem">
+				<button type="submit" class="btn" style="font-size:0.85rem">Save</button>
+				<span id="invest-settings-result" style="font-size:0.75rem"></span>
+			</div>
+		</form>
+	</div>
+}
+
+templ investProvinceOption(code string, label string, selected string) {
+	if code == selected {
+		<option value={ code } selected>{ label }</option>
+	} else {
+		<option value={ code }>{ label }</option>
+	}
 }
 
 func investFormatMonth(s string) string {
