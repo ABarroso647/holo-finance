@@ -103,3 +103,115 @@ templ DebugSyncHistory(data SyncHistoryData) {
 		</div>
 	}
 }
+
+type SyncAccountsData struct {
+	Institutions []InstitutionAccountDiff
+}
+
+type InstitutionAccountDiff struct {
+	Name     string
+	Accounts []AccountDiff
+	Error    string
+}
+
+type AccountDiff struct {
+	PlaidAccountID string
+	Name           string
+	Mask           string
+	Type           string
+	Status         string // "healthy", "ghost", "stale"
+	LocalID        string
+}
+
+templ DebugSyncAccounts(data SyncAccountsData) {
+	@Layout("Sync Diagnostic") {
+		<style>
+			.sync-diag { max-width: 700px; }
+			.sync-inst { margin-bottom: 2rem; }
+			.sync-inst-name { font-size: 1.05rem; font-weight: 600; margin-bottom: 0.75rem; color: var(--text); }
+			.sync-acct-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+			.sync-acct-row:last-child { border-bottom: none; }
+			.sync-status { font-size: 1rem; flex-shrink: 0; width: 1.25rem; text-align: center; }
+			.sync-acct-info { flex: 1; }
+			.sync-acct-name { font-weight: 500; color: var(--text); }
+			.sync-acct-meta { color: var(--muted); font-size: 0.8rem; }
+			.sync-badge { font-size: 0.7rem; padding: 0.1rem 0.4rem; border-radius: 4px; font-weight: 600; }
+			.sync-badge-ghost { background: #3a2a00; color: #fbbf24; }
+			.sync-badge-stale { background: #3a0000; color: #f87171; }
+			.sync-badge-healthy { background: #003a1a; color: #34d399; }
+			.sync-action { margin-left: auto; }
+			.sync-error { color: var(--red); font-size: 0.875rem; padding: 0.5rem 0; }
+			.sync-empty { color: var(--muted); font-size: 0.875rem; }
+		</style>
+		<div class="page-header">
+			<h1>Sync Diagnostic</h1>
+		</div>
+		<div class="sync-diag">
+			if len(data.Institutions) == 0 {
+				<p class="sync-empty">No institutions connected. <a href="/connect">Connect a bank</a> to get started.</p>
+			} else {
+				for _, inst := range data.Institutions {
+					<div class="sync-inst card">
+						<div class="sync-inst-name">{ inst.Name }</div>
+						if inst.Error != "" {
+							<div class="sync-error">⚠ Plaid error: { inst.Error }</div>
+						} else if len(inst.Accounts) == 0 {
+							<div class="sync-empty">No accounts found.</div>
+						} else {
+							for _, acct := range inst.Accounts {
+								<div class="sync-acct-row" id={ "acct-row-" + acct.PlaidAccountID }>
+									if acct.Status == "healthy" {
+										<span class="sync-status" style="color:var(--green)" title="Healthy">✓</span>
+									} else if acct.Status == "ghost" {
+										<span class="sync-status" style="color:#fbbf24" title="Ghost: in Plaid but missing from DB">⚠</span>
+									} else {
+										<span class="sync-status" style="color:var(--red)" title="Stale: in DB but not in Plaid">✗</span>
+									}
+									<div class="sync-acct-info">
+										<div class="sync-acct-name">
+											{ acct.Name }
+											if acct.Mask != "" {
+												<span class="sync-acct-meta"> ···{ acct.Mask }</span>
+											}
+										</div>
+										<div class="sync-acct-meta">
+											{ acct.Type }
+											if acct.Status == "healthy" {
+												<span class="sync-badge sync-badge-healthy">healthy</span>
+											} else if acct.Status == "ghost" {
+												<span class="sync-badge sync-badge-ghost">ghost — in Plaid, missing from DB</span>
+											} else {
+												<span class="sync-badge sync-badge-stale">stale — in DB, not in Plaid</span>
+											}
+										</div>
+									</div>
+									<div class="sync-action">
+										if acct.Status == "ghost" {
+											<button class="btn btn-sm"
+												hx-post={ "/api/debug/sync-accounts/" + acct.PlaidAccountID + "/readd" }
+												hx-target={ "#acct-row-" + acct.PlaidAccountID }
+												hx-swap="outerHTML">
+												Re-add to DB
+											</button>
+										} else if acct.Status == "stale" {
+											<button class="btn btn-sm" style="color:var(--red)"
+												hx-delete={ "/api/debug/sync-accounts/" + acct.LocalID }
+												hx-target={ "#acct-row-" + acct.PlaidAccountID }
+												hx-swap="outerHTML"
+												hx-confirm={ "Remove stale account \"" + acct.Name + "\" from the DB?" }>
+												Remove from DB
+											</button>
+										}
+									</div>
+								</div>
+							}
+						}
+					</div>
+				}
+			}
+			<p style="margin-top:1rem;font-size:0.8rem;color:var(--muted)">
+				<a href="/connect">← Back to Connect</a>
+			</p>
+		</div>
+	}
+}

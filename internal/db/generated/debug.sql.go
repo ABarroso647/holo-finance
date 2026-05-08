@@ -9,6 +9,15 @@ import (
 	"context"
 )
 
+const deleteAccountByID = `-- name: DeleteAccountByID :exec
+DELETE FROM accounts WHERE id = ?1
+`
+
+func (q *Queries) DeleteAccountByID(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteAccountByID, id)
+	return err
+}
+
 const getCursorByItemID = `-- name: GetCursorByItemID :one
 SELECT item_id, cursor FROM plaid_cursors WHERE item_id = ?1
 `
@@ -57,6 +66,59 @@ func (q *Queries) GetInstitutionSyncStats(ctx context.Context) ([]GetInstitution
 			&i.LatestDate,
 			&i.TotalTxns,
 			&i.AccountCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAccountsForDebug = `-- name: ListAccountsForDebug :many
+SELECT a.id, a.plaid_account_id, a.name, a.type, a.subtype, a.institution_id,
+       i.plaid_item_id, i.plaid_access_token, i.name as institution_name
+FROM accounts a
+JOIN institutions i ON a.institution_id = i.id
+ORDER BY i.name, a.name
+`
+
+type ListAccountsForDebugRow struct {
+	ID               string  `json:"id"`
+	PlaidAccountID   string  `json:"plaid_account_id"`
+	Name             string  `json:"name"`
+	Type             string  `json:"type"`
+	Subtype          *string `json:"subtype"`
+	InstitutionID    string  `json:"institution_id"`
+	PlaidItemID      string  `json:"plaid_item_id"`
+	PlaidAccessToken string  `json:"plaid_access_token"`
+	InstitutionName  string  `json:"institution_name"`
+}
+
+func (q *Queries) ListAccountsForDebug(ctx context.Context) ([]ListAccountsForDebugRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAccountsForDebug)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAccountsForDebugRow
+	for rows.Next() {
+		var i ListAccountsForDebugRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.PlaidAccountID,
+			&i.Name,
+			&i.Type,
+			&i.Subtype,
+			&i.InstitutionID,
+			&i.PlaidItemID,
+			&i.PlaidAccessToken,
+			&i.InstitutionName,
 		); err != nil {
 			return nil, err
 		}
