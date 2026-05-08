@@ -113,6 +113,7 @@ func main() {
 		investHandler := handlers.NewInvestHandler(queries)
 		r.Get("/invest", investHandler.Page)
 		r.Post("/api/invest/buffer", investHandler.UpdateBuffer)
+		r.Post("/api/invest/settings", investHandler.UpdateSettings)
 
 		recurringHandler := handlers.NewRecurringHandler(queries)
 		r.Get("/recurring", recurringHandler.Page)
