@@ -150,6 +150,13 @@ func main() {
 			r.Post("/api/accounts/{id}/remove", plaidHandler.RemoveAccount)
 			r.Post("/api/plaid/webhook", plaidHandler.Webhook)
 		}
+
+		debugHandler := handlers.NewDebugHandler(queries, api)
+		r.Get("/api/debug/sync-history", debugHandler.SyncHistory)
+		r.Post("/api/debug/reset-cursor/{item_id}", debugHandler.ResetCursor)
+		r.Get("/api/debug/sync-accounts", debugHandler.SyncAccounts)
+		r.Post("/api/debug/sync-accounts/{plaid_account_id}/readd", debugHandler.ReaddAccount)
+		r.Delete("/api/debug/sync-accounts/{account_id}", debugHandler.RemoveStaleAccount)
 	})
 
 	log.Printf("starting holo on :%s", port)
