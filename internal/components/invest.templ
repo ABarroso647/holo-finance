@@ -2,6 +2,7 @@ package components
 
 import (
 	"fmt"
+	"math"
 	"time"
 	db "holo/internal/db/generated"
 )
@@ -14,13 +15,19 @@ type MonthFlow struct {
 }
 
 type InvestData struct {
-	Months      []MonthFlow
-	AvgIncome   float64
-	AvgSpending float64
-	AvgSurplus  float64
-	Buffer      float64
-	Recommended float64
-	Holdings    []db.ListAllHoldingsRow
+	Months         []MonthFlow
+	AvgIncome      float64
+	AvgSpending    float64
+	AvgSurplus     float64
+	Buffer         float64
+	Recommended    float64
+	Holdings       []db.ListAllHoldingsRow
+	PortfolioTotal float64
+	PortfolioGain  float64
+	AccountCount   int64
+	ByType         []db.GetAllocationByTypeRow
+	ByAccount      []db.GetAllocationByAccountRow
+	ByTypeJSON     string
 }
 
 templ InvestPage(d InvestData) {
@@ -32,6 +39,11 @@ templ InvestPage(d InvestData) {
 			@investSurplusTiles(d)
 			@investRecommendation(d)
 			@investMonthlyTable(d.Months)
+			if len(d.ByType) > 0 {
+				@investPortfolioSummary(d)
+				@investAllocationByType(d)
+				@investAllocationByAccount(d)
+			}
 			@investHoldings(d.Holdings)
 		</div>
 	}
@@ -142,6 +154,105 @@ templ investMonthlyTable(months []MonthFlow) {
 	</div>
 }
 
+templ investPortfolioSummary(d InvestData) {
+	<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem">
+		<div class="card">
+			<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Total Portfolio</div>
+			<div style="font-size:1.6rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("$%.2f", d.PortfolioTotal) }</div>
+			<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">market value</div>
+		</div>
+		<div class="card">
+			<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Unrealized Gain</div>
+			if d.PortfolioGain >= 0 {
+				<div style="font-size:1.6rem;font-weight:700;color:var(--green)">{ fmt.Sprintf("+$%.2f", d.PortfolioGain) }</div>
+			} else {
+				<div style="font-size:1.6rem;font-weight:700;color:var(--red)">{ fmt.Sprintf("-$%.2f", math.Abs(d.PortfolioGain)) }</div>
+			}
+			<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">vs cost basis</div>
+		</div>
+		<div class="card">
+			<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.5rem">Accounts</div>
+			<div style="font-size:1.6rem;font-weight:700;color:var(--text)">{ fmt.Sprintf("%d", d.AccountCount) }</div>
+			<div style="font-size:0.75rem;color:var(--muted);margin-top:0.25rem">investment accounts</div>
+		</div>
+	</div>
+}
+
+templ investAllocationByType(d InvestData) {
+	<div class="card">
+		<h2 style="margin-bottom:1rem">Allocation by Security Type</h2>
+		<div hidden data-type-json={ d.ByTypeJSON } id="invest-type-data"></div>
+		<div style="display:grid;grid-template-columns:1fr 1fr;gap:2rem;align-items:center">
+			<div style="position:relative;height:220px">
+				<canvas id="invest-type-chart"></canvas>
+			</div>
+			<div style="display:flex;flex-direction:column;gap:0.4rem">
+				for _, row := range d.ByType {
+					{{ label := investSecurityTypeLabel(row.SecurityType) }}
+					{{ color := investSecurityTypeColor(row.SecurityType) }}
+					<div style="display:flex;align-items:center;gap:0.5rem">
+						<span style={ fmt.Sprintf("width:10px;height:10px;border-radius:50%%;background:%s;flex-shrink:0", color) }></span>
+						<span style="flex:1;font-size:0.875rem;text-transform:capitalize">{ label }</span>
+						<span style="font-variant-numeric:tabular-nums;font-size:0.875rem">{ fmt.Sprintf("$%.2f", row.Value) }</span>
+						if d.PortfolioTotal > 0 {
+							<span style="color:var(--muted);font-size:0.75rem;width:3.5rem;text-align:right">{ fmt.Sprintf("%.1f%%", row.Value/d.PortfolioTotal*100) }</span>
+						}
+					</div>
+				}
+			</div>
+		</div>
+		<script>
+			(function() {
+				try {
+					if (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+					const el = document.getElementById('invest-type-data');
+					if (!el) throw new Error('invest-type-data element not found');
+					const data = JSON.parse(el.dataset.typeJson);
+					new Chart(document.getElementById('invest-type-chart'), {
+						type: 'doughnut',
+						data: { labels: data.labels, datasets: [{ data: data.values, backgroundColor: data.colors, borderWidth: 0 }] },
+						options: { plugins: { legend: { display: false } }, maintainAspectRatio: false }
+					});
+				} catch(e) {
+					document.getElementById('invest-type-chart').insertAdjacentHTML('afterend', '<p style="color:var(--red);font-size:0.75rem">Chart error: '+e.message+'</p>');
+				}
+			})();
+		</script>
+	</div>
+}
+
+templ investAllocationByAccount(d InvestData) {
+	<div class="card">
+		<h2 style="margin-bottom:1rem">Allocation by Account</h2>
+		<table>
+			<thead>
+				<tr>
+					<th>Account</th>
+					<th>Institution</th>
+					<th style="text-align:right">Value</th>
+					<th style="text-align:right">% of Portfolio</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, row := range d.ByAccount {
+					<tr>
+						<td style="font-weight:500">{ row.AccountName }</td>
+						<td style="color:var(--muted);font-size:0.8rem">{ row.InstitutionName }</td>
+						<td style="text-align:right;font-variant-numeric:tabular-nums;font-weight:600">{ fmt.Sprintf("$%.2f", row.Value) }</td>
+						<td style="text-align:right;color:var(--muted);font-variant-numeric:tabular-nums">
+							if d.PortfolioTotal > 0 {
+								{ fmt.Sprintf("%.1f%%", row.Value/d.PortfolioTotal*100) }
+							} else {
+								—
+							}
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</div>
+}
+
 templ investHoldings(holdings []db.ListAllHoldingsRow) {
 	<div class="card">
 		<div style="display:flex;align-items:center;gap:1rem;margin-bottom:0.75rem">
@@ -242,6 +353,30 @@ templ investHoldings(holdings []db.ListAllHoldingsRow) {
 			</table>
 		}
 	</div>
+}
+
+func investSecurityTypeLabel(v interface{}) string {
+	if s, ok := v.(string); ok && s != "" {
+		return s
+	}
+	return "other"
+}
+
+func investSecurityTypeColor(v interface{}) string {
+	colorMap := map[string]string{
+		"equity":       "#6366f1",
+		"etf":          "#60a5fa",
+		"mutual fund":  "#c084fc",
+		"fixed income": "#34d399",
+		"cash":         "#4ade80",
+		"derivative":   "#fb923c",
+		"other":        "#64748b",
+	}
+	label := investSecurityTypeLabel(v)
+	if c, ok := colorMap[label]; ok {
+		return c
+	}
+	return colorMap["other"]
 }
 
 func investFormatMonth(s string) string {
