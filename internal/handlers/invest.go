@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -65,18 +66,62 @@ func (h *InvestHandler) Page(w http.ResponseWriter, r *http.Request) {
 	recommended := math.Max(avgSurplus-buffer, 0)
 
 	holdings, _ := h.queries.ListAllHoldings(ctx)
+	summary, _ := h.queries.GetPortfolioSummary(ctx)
+	byType, _ := h.queries.GetAllocationByType(ctx)
+	byAccount, _ := h.queries.GetAllocationByAccount(ctx)
 
 	data := components.InvestData{
-		Months:      months,
-		AvgIncome:   totalIncome / count,
-		AvgSpending: totalSpending / count,
-		AvgSurplus:  avgSurplus,
-		Buffer:      buffer,
-		Recommended: recommended,
-		Holdings:    holdings,
+		Months:         months,
+		AvgIncome:      totalIncome / count,
+		AvgSpending:    totalSpending / count,
+		AvgSurplus:     avgSurplus,
+		Buffer:         buffer,
+		Recommended:    recommended,
+		Holdings:       holdings,
+		PortfolioTotal: summary.TotalValue,
+		PortfolioGain:  summary.TotalGain,
+		AccountCount:   summary.AccountCount,
+		ByType:         byType,
+		ByAccount:      byAccount,
+		ByTypeJSON:     buildInvestTypeJSON(byType),
 	}
 
 	components.InvestPage(data).Render(ctx, w)
+}
+
+func buildInvestTypeJSON(rows []db.GetAllocationByTypeRow) string {
+	if len(rows) == 0 {
+		return `{"labels":[],"values":[],"colors":[]}`
+	}
+	colorMap := map[string]string{
+		"equity":       "#6366f1",
+		"etf":          "#60a5fa",
+		"mutual fund":  "#c084fc",
+		"fixed income": "#34d399",
+		"cash":         "#4ade80",
+		"derivative":   "#fb923c",
+		"other":        "#64748b",
+	}
+	labels := make([]string, len(rows))
+	values := make([]float64, len(rows))
+	colors := make([]string, len(rows))
+	for i, r := range rows {
+		label := "other"
+		if s, ok := r.SecurityType.(string); ok && s != "" {
+			label = s
+		}
+		labels[i] = label
+		values[i] = r.Value
+		if c, ok := colorMap[label]; ok {
+			colors[i] = c
+		} else {
+			colors[i] = colorMap["other"]
+		}
+	}
+	lb, _ := json.Marshal(labels)
+	vb, _ := json.Marshal(values)
+	cb, _ := json.Marshal(colors)
+	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s}`, lb, vb, cb)
 }
 
 func (h *InvestHandler) UpdateBuffer(w http.ResponseWriter, r *http.Request) {

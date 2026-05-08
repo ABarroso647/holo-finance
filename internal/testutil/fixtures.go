@@ -126,3 +126,50 @@ func InsertRule(t *testing.T, q *dbgen.Queries, id, matchType, matchField, match
 		t.Fatalf("InsertRule %q: %v", id, err)
 	}
 }
+
+func InsertAccountWithID(t *testing.T, q *dbgen.Queries, institutionID, id, accountType string) string {
+	t.Helper()
+	if _, err := q.UpsertAccount(context.Background(), dbgen.UpsertAccountParams{
+		ID:             id,
+		InstitutionID:  institutionID,
+		PlaidAccountID: "plaid-" + id,
+		Name:           "Test " + id,
+		Type:           accountType,
+		Currency:       "CAD",
+	}); err != nil {
+		t.Fatalf("InsertAccountWithID %q: %v", id, err)
+	}
+	return id
+}
+
+func InsertSecurity(t *testing.T, q *dbgen.Queries, id, plaidID, name, secType string) {
+	t.Helper()
+	var typePtr *string
+	if secType != "" {
+		typePtr = &secType
+	}
+	if err := q.UpsertSecurity(context.Background(), dbgen.UpsertSecurityParams{
+		ID:              id,
+		PlaidSecurityID: plaidID,
+		Name:            name,
+		Type:            typePtr,
+		Currency:        "CAD",
+	}); err != nil {
+		t.Fatalf("InsertSecurity %q: %v", id, err)
+	}
+}
+
+func InsertHolding(t *testing.T, q *dbgen.Queries, id, accountID, securityID string, quantity, institutionValue float64, costBasis *float64) {
+	t.Helper()
+	if err := q.UpsertHolding(context.Background(), dbgen.UpsertHoldingParams{
+		ID:               id,
+		AccountID:        accountID,
+		SecurityID:       securityID,
+		Quantity:         quantity,
+		InstitutionValue: &institutionValue,
+		CostBasis:        costBasis,
+		Currency:         "CAD",
+	}); err != nil {
+		t.Fatalf("InsertHolding %q: %v", id, err)
+	}
+}

@@ -10,6 +10,110 @@ import (
 	"time"
 )
 
+const getAllocationByAccount = `-- name: GetAllocationByAccount :many
+SELECT
+    COALESCE(a.display_name, a.name) as account_name,
+    i.name as institution_name,
+    CAST(COALESCE(SUM(h.institution_value), 0.0) AS REAL) as value
+FROM holdings h
+JOIN accounts a ON h.account_id = a.id
+JOIN institutions i ON a.institution_id = i.id
+GROUP BY h.account_id
+ORDER BY value DESC
+`
+
+type GetAllocationByAccountRow struct {
+	AccountName     string  `json:"account_name"`
+	InstitutionName string  `json:"institution_name"`
+	Value           float64 `json:"value"`
+}
+
+func (q *Queries) GetAllocationByAccount(ctx context.Context) ([]GetAllocationByAccountRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllocationByAccount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllocationByAccountRow
+	for rows.Next() {
+		var i GetAllocationByAccountRow
+		if err := rows.Scan(&i.AccountName, &i.InstitutionName, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getAllocationByType = `-- name: GetAllocationByType :many
+SELECT
+    COALESCE(NULLIF(s.type, ''), 'other') as security_type,
+    CAST(COALESCE(SUM(h.institution_value), 0.0) AS REAL) as value
+FROM holdings h
+JOIN securities s ON h.security_id = s.id
+GROUP BY COALESCE(NULLIF(s.type, ''), 'other')
+ORDER BY value DESC
+`
+
+type GetAllocationByTypeRow struct {
+	SecurityType interface{} `json:"security_type"`
+	Value        float64     `json:"value"`
+}
+
+func (q *Queries) GetAllocationByType(ctx context.Context) ([]GetAllocationByTypeRow, error) {
+	rows, err := q.db.QueryContext(ctx, getAllocationByType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []GetAllocationByTypeRow
+	for rows.Next() {
+		var i GetAllocationByTypeRow
+		if err := rows.Scan(&i.SecurityType, &i.Value); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getPortfolioSummary = `-- name: GetPortfolioSummary :one
+SELECT
+    CAST(COALESCE(SUM(h.institution_value), 0.0) AS REAL) as total_value,
+    CAST(COALESCE(SUM(
+        CASE WHEN h.cost_basis IS NOT NULL AND h.quantity IS NOT NULL
+        THEN h.institution_value - (h.quantity * h.cost_basis)
+        ELSE 0 END
+    ), 0.0) AS REAL) as total_gain,
+    CAST(COUNT(DISTINCT h.account_id) AS INTEGER) as account_count
+FROM holdings h
+`
+
+type GetPortfolioSummaryRow struct {
+	TotalValue   float64 `json:"total_value"`
+	TotalGain    float64 `json:"total_gain"`
+	AccountCount int64   `json:"account_count"`
+}
+
+func (q *Queries) GetPortfolioSummary(ctx context.Context) (GetPortfolioSummaryRow, error) {
+	row := q.db.QueryRowContext(ctx, getPortfolioSummary)
+	var i GetPortfolioSummaryRow
+	err := row.Scan(&i.TotalValue, &i.TotalGain, &i.AccountCount)
+	return i, err
+}
+
 const getSecurityByPlaidID = `-- name: GetSecurityByPlaidID :one
 SELECT id, plaid_security_id, ticker_symbol, name, type, currency, close_price, close_price_as_of, created_at, updated_at FROM securities WHERE plaid_security_id = ?
 `
