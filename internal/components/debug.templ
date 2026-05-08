@@ -1,0 +1,105 @@
+package components
+
+import "fmt"
+
+type SyncHistoryData struct {
+	Institutions []InstitutionSyncStat
+}
+
+type InstitutionSyncStat struct {
+	Name         string
+	ItemID       string
+	EarliestDate string
+	LatestDate   string
+	TotalTxns    int64
+	AccountCount int64
+	HasCursor    bool
+}
+
+templ DebugSyncHistory(data SyncHistoryData) {
+	@Layout("Debug: Sync History") {
+		<div class="page-header">
+			<h1>Debug: Sync History</h1>
+		</div>
+		<div class="card" style="margin-bottom:1.25rem;color:var(--muted);font-size:0.875rem">
+			<p>This diagnostic page shows transaction history coverage per institution and cursor status.
+			If your history does not go back far enough, reset the cursor for the affected institution —
+			the next sync will pull the full available history from Plaid (up to 24 months).</p>
+		</div>
+		if len(data.Institutions) == 0 {
+			<div class="card">
+				<p style="color:var(--muted)">No institutions linked yet.</p>
+			</div>
+		} else {
+			<div class="card">
+				<table>
+					<thead>
+						<tr>
+							<th>Institution</th>
+							<th>Accounts</th>
+							<th>Transactions</th>
+							<th>Earliest Date</th>
+							<th>Latest Date</th>
+							<th>Cursor Status</th>
+							<th>Action</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, inst := range data.Institutions {
+							<tr>
+								<td>{ inst.Name }</td>
+								<td>{ fmt.Sprintf("%d", inst.AccountCount) }</td>
+								<td>{ fmt.Sprintf("%d", inst.TotalTxns) }</td>
+								<td>
+									if inst.EarliestDate != "" {
+										{ inst.EarliestDate }
+									} else {
+										<span style="color:var(--muted)">—</span>
+									}
+								</td>
+								<td>
+									if inst.LatestDate != "" {
+										{ inst.LatestDate }
+									} else {
+										<span style="color:var(--muted)">—</span>
+									}
+								</td>
+								<td>
+									if inst.HasCursor {
+										<span class="badge" style="background:rgba(34,197,94,0.15);color:var(--green)">Active</span>
+									} else {
+										<span class="badge" style="background:rgba(239,68,68,0.15);color:var(--red)">No cursor</span>
+									}
+								</td>
+								<td>
+									<span id={ "reset-result-" + inst.ItemID }>
+										<button
+											class="btn btn-ghost"
+											style="font-size:0.75rem;padding:0.25rem 0.6rem"
+											hx-post={ "/api/debug/reset-cursor/" + inst.ItemID }
+											hx-target={ "#reset-result-" + inst.ItemID }
+											hx-swap="innerHTML"
+											hx-confirm={ "Reset cursor for " + inst.Name + "? Next sync will re-pull full history." }
+										>
+											Reset Cursor
+										</button>
+									</span>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+		<div style="margin-top:1.25rem;color:var(--muted);font-size:0.8rem">
+			<p>Item IDs: { func() string {
+				s := ""
+				for i, inst := range data.Institutions {
+					if i > 0 { s += ", " }
+					s += inst.Name + " → " + inst.ItemID
+				}
+				return s
+			}() }</p>
+		</div>
+	}
+}
