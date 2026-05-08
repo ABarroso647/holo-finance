@@ -119,3 +119,112 @@ func TestGetSpendingByCategory_DedupsOther(t *testing.T) {
 	assert.Equal(t, "cat_other", rows[0].CategoryID)
 	assert.InDelta(t, 50.0, rows[0].Total, 0.01)
 }
+
+// ---------------------------------------------------------------------------
+// GetRecurringByMerchant tests
+// ---------------------------------------------------------------------------
+
+func TestGetRecurringByMerchant_GroupsCorrectly(t *testing.T) {
+	q, acctID := setupAnalytics(t)
+	ctx := context.Background()
+
+	// 3 Netflix transactions across 3 different months — should produce 1 row with months_seen=3
+	testutil.InsertRecurringTransaction(t, q, "t1", acctID, "p1", "Netflix", 15.99, "cat_entertainment", "plaid", "2026-03-01", true)
+	testutil.InsertRecurringTransaction(t, q, "t2", acctID, "p2", "Netflix", 15.99, "cat_entertainment", "plaid", "2026-04-01", true)
+	testutil.InsertRecurringTransaction(t, q, "t3", acctID, "p3", "Netflix", 15.99, "cat_entertainment", "plaid", "2026-05-01", true)
+
+	rows, err := q.GetRecurringByMerchant(ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "three Netflix transactions should produce one grouped row")
+	assert.Equal(t, "Netflix", rows[0].Merchant)
+	assert.Equal(t, int64(3), rows[0].MonthsSeen)
+	assert.InDelta(t, 15.99, rows[0].AvgAmount, 0.01)
+}
+
+func TestGetRecurringByMerchant_ExcludesNonRecurring(t *testing.T) {
+	q, acctID := setupAnalytics(t)
+	ctx := context.Background()
+
+	// One recurring, one non-recurring
+	testutil.InsertRecurringTransaction(t, q, "t1", acctID, "p1", "Spotify", 9.99, "cat_entertainment", "plaid", "2026-05-01", true)
+	testutil.InsertRecurringTransaction(t, q, "t2", acctID, "p2", "One-off", 50.0, "cat_shopping", "plaid", "2026-05-05", false)
+
+	rows, err := q.GetRecurringByMerchant(ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "only recurring transactions should appear")
+	assert.Equal(t, "Spotify", rows[0].Merchant)
+}
+
+func TestGetRecurringByMerchant_ExcludesTransferCategory(t *testing.T) {
+	q, acctID := setupAnalytics(t)
+	ctx := context.Background()
+
+	// Recurring but with a TRANSFER category
+	testutil.InsertRecurringTransaction(t, q, "t1", acctID, "p1", "Credit Card Payment", 500.0, "LOAN_PAYMENTS_CREDIT_CARD_PAYMENT", "plaid", "2026-05-01", true)
+	// A normal recurring
+	testutil.InsertRecurringTransaction(t, q, "t2", acctID, "p2", "Netflix", 15.99, "cat_entertainment", "plaid", "2026-05-01", true)
+
+	rows, err := q.GetRecurringByMerchant(ctx)
+	require.NoError(t, err)
+	for _, row := range rows {
+		assert.NotEqual(t, "Credit Card Payment", row.Merchant, "TRANSFER category recurring should be excluded")
+	}
+	assert.Len(t, rows, 1, "only Netflix should appear")
+}
+
+func TestGetRecurringByMerchant_UsesMerchantNameFallback(t *testing.T) {
+	q, acctID := setupAnalytics(t)
+	ctx := context.Background()
+
+	// Insert a transaction with merchant_name set — should group by merchant_name, not name
+	merchantName := "Netflix Inc."
+	_, err := q.UpsertTransaction(ctx, dbgen.UpsertTransactionParams{
+		ID:                 "t1",
+		AccountID:          acctID,
+		PlaidTransactionID: "p1",
+		Date:               "2026-05-01",
+		Name:               "NETFLIX.COM",
+		MerchantName:       &merchantName,
+		Amount:             15.99,
+		Currency:           "CAD",
+		IsRecurring:        1,
+	})
+	require.NoError(t, err)
+
+	// Another transaction with same merchant_name but different name
+	_, err = q.UpsertTransaction(ctx, dbgen.UpsertTransactionParams{
+		ID:                 "t2",
+		AccountID:          acctID,
+		PlaidTransactionID: "p2",
+		Date:               "2026-04-01",
+		Name:               "Netflix Monthly",
+		MerchantName:       &merchantName,
+		Amount:             15.99,
+		Currency:           "CAD",
+		IsRecurring:        1,
+	})
+	require.NoError(t, err)
+
+	rows, err := q.GetRecurringByMerchant(ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "two transactions with same merchant_name should group into one row")
+	assert.Equal(t, "Netflix Inc.", rows[0].Merchant, "merchant_name should be used when available")
+	assert.Equal(t, int64(2), rows[0].MonthsSeen)
+}
+
+func TestGetRecurringByMerchant_RespectsExclusions(t *testing.T) {
+	q, acctID := setupAnalytics(t)
+	ctx := context.Background()
+
+	testutil.InsertRecurringTransaction(t, q, "t1", acctID, "p1", "Netflix", 15.99, "cat_entertainment", "plaid", "2026-05-01", true)
+	testutil.InsertRecurringTransaction(t, q, "t2", acctID, "p2", "Spotify", 9.99, "cat_entertainment", "plaid", "2026-05-02", true)
+
+	// Exclude Netflix
+	err := q.ExcludeMerchantFromRecurring(ctx, "Netflix")
+	require.NoError(t, err)
+
+	rows, err := q.GetRecurringByMerchant(ctx)
+	require.NoError(t, err)
+	require.Len(t, rows, 1, "excluded merchant should not appear")
+	assert.Equal(t, "Spotify", rows[0].Merchant)
+}

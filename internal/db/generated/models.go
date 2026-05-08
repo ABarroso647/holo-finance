@@ -103,6 +103,11 @@ type PlaidCursor struct {
 	Cursor *string `json:"cursor"`
 }
 
+type RecurringExclusion struct {
+	Merchant  string `json:"merchant"`
+	CreatedAt string `json:"created_at"`
+}
+
 type Rule struct {
 	ID         string    `json:"id"`
 	MatchType  string    `json:"match_type"`

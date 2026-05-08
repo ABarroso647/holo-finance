@@ -180,3 +180,8 @@ CREATE TABLE IF NOT EXISTS salary_estimates (
     last_detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(merchant_name)
 );
+
+CREATE TABLE IF NOT EXISTS recurring_exclusions (
+    merchant   TEXT PRIMARY KEY,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

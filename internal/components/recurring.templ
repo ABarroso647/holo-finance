@@ -1,0 +1,151 @@
+package components
+
+import "fmt"
+
+templ RecurringPage(monthlyTotal float64, items []RecurringItem, exclusions []string, monthlyJSON string) {
+	@Layout("Recurring") {
+		<div class="page-header">
+			<h1>Recurring</h1>
+		</div>
+
+		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.5rem">
+			<div class="card">
+				<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">This Month</div>
+				<div style="font-size:1.6rem;font-weight:700">{ fmt.Sprintf("$%.2f", monthlyTotal) }</div>
+			</div>
+			<div class="card">
+				<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Yearly Estimate</div>
+				{{ yearly := 0.0 }}
+				for _, item := range items {
+					{{ yearly += item.YearlyEst }}
+				}
+				<div style="font-size:1.6rem;font-weight:700">{ fmt.Sprintf("$%.0f", yearly) }</div>
+			</div>
+			<div class="card">
+				<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Active</div>
+				<div style="font-size:1.6rem;font-weight:700">{ fmt.Sprintf("%d", len(items)) }</div>
+			</div>
+		</div>
+
+		<div class="card" style="margin-bottom:1.5rem">
+			<div style="font-size:0.85rem;font-weight:600;margin-bottom:0.75rem">6-Month Trend</div>
+			<div hidden data-flows={ monthlyJSON } id="recurring-flows-data"></div>
+			<div style="position:relative;height:120px">
+				<canvas id="recurring-trend-chart"></canvas>
+			</div>
+			<script>
+				(function() {
+					try {
+						const d = JSON.parse(document.getElementById('recurring-flows-data').dataset.flows);
+						if (!d.labels || d.labels.length === 0) return;
+						new Chart(document.getElementById('recurring-trend-chart'), {
+							type: 'bar',
+							data: {
+								labels: d.labels,
+								datasets: [{ label: 'Recurring Spend', data: d.values, backgroundColor: '#6366f1' }]
+							},
+							options: {
+								responsive: true,
+								maintainAspectRatio: false,
+								plugins: { legend: { display: false } },
+								scales: {
+									x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 10 } } },
+									y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { color: '#64748b', font: { size: 11 }, callback: function(v) { return '$' + v.toFixed(0); } } }
+								}
+							}
+						});
+					} catch(e) {}
+				})();
+			</script>
+		</div>
+
+		<div class="card">
+			if len(items) == 0 {
+				<p style="color:var(--muted)">No recurring transactions found. Recurring charges are detected from Plaid data and from merchants appearing in the same month across multiple years.</p>
+			} else {
+				<table>
+					<thead>
+						<tr>
+							<th>Merchant</th>
+							<th style="text-align:right">Avg/mo</th>
+							<th style="text-align:right">Last charge</th>
+							<th style="text-align:right">Est. annual</th>
+							<th style="text-align:right">Freq</th>
+							<th style="width:2rem"></th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, item := range items {
+							<tr id={ fmt.Sprintf("rec-row-%s", sanitizeID(item.Merchant)) }>
+								<td style="font-size:0.85rem">{ item.Merchant }</td>
+								<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("$%.2f", item.AvgAmount) }</td>
+								<td style="text-align:right;color:var(--muted);font-size:0.8rem">{ shortDate(item.LastDate) }</td>
+								<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("$%.0f", item.YearlyEst) }</td>
+								<td style="text-align:right">
+									if item.IsAnnual {
+										<span class="badge" style="background:#f59e0b22;color:#f59e0b;font-size:0.7rem">Annual</span>
+									} else {
+										<span style="font-size:0.75rem;color:var(--muted)">Monthly</span>
+									}
+								</td>
+								<td style="text-align:right">
+									<button
+										type="button"
+										style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.75rem;padding:0.1rem 0.3rem"
+										title="Dismiss from recurring"
+										onclick={ templ.JSFuncCall("dismissMerchant", item.Merchant, fmt.Sprintf("rec-row-%s", sanitizeID(item.Merchant))) }
+									>x</button>
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			}
+		</div>
+
+		if len(exclusions) > 0 {
+			<details class="card" style="margin-top:1rem">
+				<summary style="cursor:pointer;font-size:0.85rem;color:var(--muted)">{ fmt.Sprintf("Hidden merchants (%d)", len(exclusions)) }</summary>
+				<div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.5rem">
+					for _, merchant := range exclusions {
+						<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem">
+							<span>{ merchant }</span>
+							<button
+								type="button"
+								class="btn btn-ghost"
+								style="font-size:0.75rem;padding:0.15rem 0.4rem"
+								onclick={ templ.JSFuncCall("restoreMerchant", merchant) }
+							>Restore</button>
+						</div>
+					}
+				</div>
+			</details>
+		}
+
+		<script>
+			function dismissMerchant(merchant, rowId) {
+				if (!confirm('Hide "' + merchant + '" from recurring? You can restore it at the bottom of this page.')) return;
+				fetch('/api/recurring/exclude', {
+					method: 'POST',
+					headers: {'Content-Type': 'application/json'},
+					body: JSON.stringify({merchant: merchant})
+				}).then(function(r) {
+					if (r.ok) {
+						var row = document.getElementById(rowId);
+						if (row) row.remove();
+					}
+				});
+			}
+
+			function restoreMerchant(merchant) {
+				fetch('/api/recurring/exclude', {
+					method: 'DELETE',
+					headers: {'Content-Type': 'application/json'},
+					body: JSON.stringify({merchant: merchant})
+				}).then(function(r) {
+					if (r.ok) location.reload();
+				});
+			}
+		</script>
+	}
+}
