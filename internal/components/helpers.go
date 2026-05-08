@@ -183,6 +183,32 @@ func budgetBarColor(pct float64) string {
 	return "var(--green)"
 }
 
+// statementCyclePct returns how far through the statement cycle today is (0–100+).
+func statementCyclePct(stmtDate, dueDate string) float64 {
+	stmt, err1 := time.Parse("2006-01-02", stmtDate)
+	due, err2 := time.Parse("2006-01-02", dueDate)
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	now := time.Now()
+	total := due.Sub(stmt).Hours()
+	if total <= 0 {
+		return 0
+	}
+	elapsed := now.Sub(stmt).Hours()
+	return (elapsed / total) * 100
+}
+
+func cyclePctColor(pct float64) string {
+	if pct >= 90 {
+		return "var(--red)"
+	}
+	if pct >= 70 {
+		return "#f59e0b"
+	}
+	return "var(--green)"
+}
+
 func budgetColor(c string) string {
 	if c != "" {
 		return c
@@ -191,6 +217,13 @@ func budgetColor(c string) string {
 }
 
 func minPct(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func minF(a, b float64) float64 {
 	if a < b {
 		return a
 	}

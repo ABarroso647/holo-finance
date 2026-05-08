@@ -42,6 +42,46 @@ templ CardsPage(cards []CardSummary) {
 				<p style="color:var(--muted)">No credit card accounts found. Connect a bank and sync to get started.</p>
 			</div>
 		} else {
+			{{ var totalBalance, totalAvailable float64 }}
+			{{ nearestDue := "" }}
+			{{ nearestDays := 9999 }}
+			for _, card := range cards {
+				if card.Account.CurrentBalance != nil {
+					{{ totalBalance += *card.Account.CurrentBalance }}
+				}
+				if card.Account.AvailableBalance != nil {
+					{{ totalAvailable += *card.Account.AvailableBalance }}
+				}
+				if card.Liability != nil && card.Liability.NextPaymentDueDate != nil {
+					{{ days := daysUntil(*card.Liability.NextPaymentDueDate) }}
+					if days < nearestDays {
+						{{ nearestDays = days }}
+						{{ nearestDue = *card.Liability.NextPaymentDueDate }}
+					}
+				}
+			}
+			{{ totalLimit := totalBalance + totalAvailable }}
+			{{ overallUtil := 0.0 }}
+			if totalLimit > 0 {
+				{{ overallUtil = (totalBalance / totalLimit) * 100 }}
+			}
+			<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem">
+				<div class="card">
+					<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Total Balance</div>
+					<div style="font-size:1.4rem;font-weight:700">{ fmt.Sprintf("$%.2f", totalBalance) }</div>
+				</div>
+				<div class="card">
+					<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Utilization</div>
+					<div style={ fmt.Sprintf("font-size:1.4rem;font-weight:700;color:%s", utilColor(overallUtil)) }>{ fmt.Sprintf("%.0f%%", overallUtil) }</div>
+				</div>
+				if nearestDue != "" {
+					<div class="card">
+						<div style="font-size:0.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.25rem">Next Due</div>
+						<div style={ fmt.Sprintf("font-size:1.4rem;font-weight:700;color:%s", dueDateColor(nearestDays)) }>{ formatCardDate(nearestDue) }</div>
+						<div style="font-size:0.75rem;color:var(--muted)">{ daysLabel(nearestDays) }</div>
+					</div>
+				}
+			</div>
 			<div style="display:flex;flex-direction:column;gap:1.25rem">
 				for _, card := range cards {
 					@CardCard(card)
@@ -103,6 +143,9 @@ templ CardCard(card CardSummary) {
 			</div>
 			<div>
 				@cardSpendSection(card.SpendTotal, card.SpendLabel, card.TopCats)
+				<div style="margin-top:0.5rem">
+					<a href={ templ.SafeURL(fmt.Sprintf("/transactions?account_id=%s", card.Account.ID)) } style="font-size:0.75rem;color:var(--accent)">View transactions →</a>
+				</div>
 			</div>
 		</div>
 		<div style="margin-top:1rem;border-top:1px solid var(--border);padding-top:1rem">
@@ -150,6 +193,21 @@ templ cardPaymentSection(liab *db.CreditCardLiability) {
 				<div style="display:flex;justify-content:space-between">
 					<span style="color:var(--muted)">Last payment</span>
 					<span style="color:var(--green)">{ fmt.Sprintf("$%.2f", *liab.LastPaymentAmount) } <span style="color:var(--muted);font-size:0.72rem">{ formatCardDate(*liab.LastPaymentDate) }</span></span>
+				</div>
+			}
+			if liab.LastStatementIssueDate != nil && liab.NextPaymentDueDate != nil {
+				{{ stmtDate := *liab.LastStatementIssueDate }}
+				{{ dueDate := *liab.NextPaymentDueDate }}
+				{{ cyclePct := statementCyclePct(stmtDate, dueDate) }}
+				<div style="margin-top:0.5rem">
+					<div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--muted);margin-bottom:0.2rem">
+						<span>Stmt { formatCardDate(stmtDate) }</span>
+						<span>Due { formatCardDate(dueDate) }</span>
+					</div>
+					<div style="background:var(--border);border-radius:4px;height:4px;position:relative;overflow:visible">
+						<div style={ fmt.Sprintf("width:%.0f%%;height:100%%;background:%s;border-radius:4px", minF(cyclePct, 100), cyclePctColor(cyclePct)) }></div>
+						<div style={ fmt.Sprintf("position:absolute;top:-3px;left:%.0f%%;width:10px;height:10px;border-radius:50%%;background:%s;transform:translateX(-50%%)", minF(cyclePct, 100), cyclePctColor(cyclePct)) }></div>
+					</div>
 				</div>
 			}
 		</div>
