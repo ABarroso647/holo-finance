@@ -12,6 +12,35 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func insertCardRewardRate(t *testing.T, q *dbgen.Queries, id, accountID string, categoryID *string, rate float64) {
+	t.Helper()
+	if _, err := q.UpsertCardRewardRate(context.Background(), dbgen.UpsertCardRewardRateParams{
+		ID:         id,
+		AccountID:  accountID,
+		CategoryID: categoryID,
+		RewardRate: rate,
+	}); err != nil {
+		t.Fatalf("insertCardRewardRate %q: %v", id, err)
+	}
+}
+
+func searchAll(t *testing.T, q *dbgen.Queries) []dbgen.SearchTransactionsRow {
+	t.Helper()
+	rows, err := q.SearchTransactions(context.Background(), dbgen.SearchTransactionsParams{
+		Search:     "",
+		AccountID:  "",
+		CategoryID: "",
+		DateFrom:   "",
+		DateTo:     "",
+		Recurring:  "",
+		TagID:      "",
+		Limit:      100,
+		Offset:     0,
+	})
+	require.NoError(t, err)
+	return rows
+}
+
 func setupTxnSum(t *testing.T) (*dbgen.Queries, string) {
 	t.Helper()
 	q := testutil.NewDB(t)
@@ -88,4 +117,89 @@ func TestSumFilteredTransactions_ExcludesTransfers(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.InDelta(t, 5.0, row.Spending, 0.01, "transfers and CC payments should not be counted as spending")
+}
+
+func TestSearchTransactions_BestCardRate_ExactMatch(t *testing.T) {
+	q := testutil.NewDB(t)
+	ctx := context.Background()
+	require.NoError(t, categorize.SeedCategories(ctx, q))
+
+	inst := testutil.InsertInstitution(t, q)
+	debitID := testutil.InsertAccount(t, q, inst, "depository")
+	creditID := testutil.InsertAccount(t, q, inst, "credit")
+
+	catID := "cat_food"
+	insertCardRewardRate(t, q, "rate1", creditID, &catID, 3.0)
+
+	testutil.InsertTransaction(t, q, "t1", debitID, "p1", "Groceries", 20.0, catID, "plaid")
+
+	rows := searchAll(t, q)
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].BestCardRate)
+	assert.InDelta(t, 3.0, *rows[0].BestCardRate, 0.001)
+	require.NotNil(t, rows[0].BestCardName)
+	assert.Equal(t, "Test credit", *rows[0].BestCardName)
+}
+
+func TestSearchTransactions_BestCardRate_ParentMatch(t *testing.T) {
+	q := testutil.NewDB(t)
+	ctx := context.Background()
+	require.NoError(t, categorize.SeedCategories(ctx, q))
+
+	inst := testutil.InsertInstitution(t, q)
+	debitID := testutil.InsertAccount(t, q, inst, "depository")
+	creditID := testutil.InsertAccount(t, q, inst, "credit")
+
+	// Insert sub-category with parent cat_food
+	testutil.InsertCategoryWithParent(t, q, "FOOD_AND_DRINK_GROCERIES", "cat_food")
+
+	// Rate for the parent category only (no explicit rate for the sub-category)
+	parentID := "cat_food"
+	insertCardRewardRate(t, q, "rate1", creditID, &parentID, 3.0)
+
+	// Transaction categorized as the sub-category
+	testutil.InsertTransaction(t, q, "t1", debitID, "p1", "Groceries", 20.0, "FOOD_AND_DRINK_GROCERIES", "plaid")
+
+	rows := searchAll(t, q)
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].BestCardRate)
+	assert.InDelta(t, 3.0, *rows[0].BestCardRate, 0.001)
+}
+
+func TestSearchTransactions_BestCardRate_CatchAll(t *testing.T) {
+	q := testutil.NewDB(t)
+	ctx := context.Background()
+	require.NoError(t, categorize.SeedCategories(ctx, q))
+
+	inst := testutil.InsertInstitution(t, q)
+	debitID := testutil.InsertAccount(t, q, inst, "depository")
+	creditID := testutil.InsertAccount(t, q, inst, "credit")
+
+	// NULL category_id = catch-all rate
+	insertCardRewardRate(t, q, "rate1", creditID, nil, 1.0)
+
+	// Transaction categorized as something with no explicit or parent rate
+	testutil.InsertTransaction(t, q, "t1", debitID, "p1", "Random spend", 15.0, "cat_other", "plaid")
+
+	rows := searchAll(t, q)
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].BestCardRate)
+	assert.InDelta(t, 1.0, *rows[0].BestCardRate, 0.001)
+}
+
+func TestSearchTransactions_BestCardRate_NilWhenNoRates(t *testing.T) {
+	q := testutil.NewDB(t)
+	ctx := context.Background()
+	require.NoError(t, categorize.SeedCategories(ctx, q))
+
+	inst := testutil.InsertInstitution(t, q)
+	debitID := testutil.InsertAccount(t, q, inst, "depository")
+
+	// No card_reward_rates rows at all
+	testutil.InsertTransaction(t, q, "t1", debitID, "p1", "Coffee", 5.0, "cat_food", "plaid")
+
+	rows := searchAll(t, q)
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].BestCardName)
+	assert.Nil(t, rows[0].BestCardRate)
 }

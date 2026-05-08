@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+const countCardRewardRates = `-- name: CountCardRewardRates :one
+SELECT CAST(COUNT(*) AS INTEGER) FROM card_reward_rates
+`
+
+func (q *Queries) CountCardRewardRates(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countCardRewardRates)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const deleteCardRewardRate = `-- name: DeleteCardRewardRate :exec
 DELETE FROM card_reward_rates WHERE id = ?1
 `
