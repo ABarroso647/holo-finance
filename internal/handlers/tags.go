@@ -22,9 +22,15 @@ func (h *TagHandler) Page(w http.ResponseWriter, r *http.Request) {
 	})
 	allTags, _ := h.queries.ListTags(ctx)
 
-	tagsJSON := buildTagsChartJSON(spend)
+	catSpend, _ := h.queries.GetSpendingByCategory(ctx, db.GetSpendingByCategoryParams{
+		Date:   dateFrom,
+		Date_2: dateTo,
+	})
 
-	components.TagsPage(spend, allTags, dateFrom, dateTo, tagsJSON).Render(ctx, w)
+	tagsJSON := buildTagsChartJSON(spend)
+	catJSON := buildCatSpendJSON(catSpend)
+
+	components.TagsPage(spend, allTags, dateFrom, dateTo, tagsJSON, catSpend, catJSON).Render(ctx, w)
 }
 
 func buildTagsChartJSON(rows []db.GetSpendByTagRow) string {
@@ -46,6 +52,24 @@ func buildTagsChartJSON(rows []db.GetSpendByTagRow) string {
 	cb, _ := json.Marshal(colors)
 	ib, _ := json.Marshal(ids)
 	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s,"ids":%s}`, lb, vb, cb, ib)
+}
+
+func buildCatSpendJSON(rows []db.GetSpendingByCategoryRow) string {
+	if len(rows) == 0 {
+		return `{"labels":[],"values":[],"colors":[]}`
+	}
+	labels := make([]string, len(rows))
+	values := make([]float64, len(rows))
+	colors := make([]string, len(rows))
+	for i, r := range rows {
+		labels[i] = r.CategoryName
+		values[i] = r.Total
+		colors[i] = r.CategoryColor
+	}
+	lb, _ := json.Marshal(labels)
+	vb, _ := json.Marshal(values)
+	cb, _ := json.Marshal(colors)
+	return fmt.Sprintf(`{"labels":%s,"values":%s,"colors":%s}`, lb, vb, cb)
 }
 
 func (h *TagHandler) List(w http.ResponseWriter, r *http.Request) {
