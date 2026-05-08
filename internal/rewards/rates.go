@@ -46,6 +46,16 @@ func FetchAndStoreRates(ctx context.Context, queries *db.Queries, accountID, car
 		return fmt.Errorf("clear existing rates: %w", err)
 	}
 
+	matched := 0
+	for _, r := range rates {
+		if MatchCategory(r.Category, categories) != nil {
+			matched++
+		}
+	}
+	log.Printf("fetch-rates: %s — %d/%d rates matched to categories", cardName, matched, len(rates))
+
+	matchedCount := 0
+	catchAllCount := 0
 	for _, r := range rates {
 		catID := MatchCategory(r.Category, categories)
 
@@ -59,6 +69,11 @@ func FetchAndStoreRates(ctx context.Context, queries *db.Queries, accountID, car
 		}
 		if isCatchAll {
 			catID = nil
+			catchAllCount++
+		}
+
+		if catID != nil {
+			matchedCount++
 		}
 
 		params := db.UpsertCardRewardRateParams{
@@ -78,6 +93,9 @@ func FetchAndStoreRates(ctx context.Context, queries *db.Queries, accountID, car
 			log.Printf("rewards: store rate for %q account %s: %v", r.Category, accountID, err)
 		}
 	}
+
+	log.Printf("fetch-rates: stored %d rates for account %s (%d with category match, %d catch-all/unmatched)",
+		len(rates), accountID, matchedCount, len(rates)-matchedCount)
 
 	return nil
 }

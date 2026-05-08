@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 )
@@ -60,7 +61,12 @@ var ratesSchema = map[string]any{
 // FetchRates fetches earn rates for a Canadian credit card.
 // Jina Search pulls live page content; OpenRouter/DeepSeek parses the JSON.
 func FetchRates(ctx context.Context, apiKey, model, cardName string) ([]FetchedRate, error) {
-	pageContent, _ := jinaSearch(ctx, cardName+" credit card Canada reward earn rates site:creditcardgenius.ca OR site:milesopedia.com")
+	pageContent, err := jinaSearch(ctx, cardName+" credit card Canada earn rates site:creditcardgenius.ca")
+	if err != nil || len(pageContent) < 500 {
+		// Fallback: broader search
+		pageContent, _ = jinaSearch(ctx, cardName+" credit card Canada reward earn rates")
+	}
+	log.Printf("fetch-rates: %s — jina returned %d chars", cardName, len(pageContent))
 
 	var prompt string
 	if pageContent != "" {
@@ -77,7 +83,7 @@ Return a JSON object with a "rates" array. Each element must have:
 - "notes": string (empty string if none)
 
 Include an "everything else" catch-all entry.`,
-			cardName, pageContent[:minInt(len(pageContent), 8000)])
+			cardName, pageContent[:minInt(len(pageContent), 12000)])
 	} else {
 		prompt = fmt.Sprintf(`What are the current reward earn rates for the "%s" credit card in Canada?
 
@@ -144,6 +150,7 @@ Include an "everything else" catch-all entry.`, cardName)
 	if err := json.Unmarshal([]byte(orResp.Choices[0].Message.Content), &wrapper); err != nil {
 		return nil, fmt.Errorf("parse rates: %w — raw: %.200s", err, orResp.Choices[0].Message.Content)
 	}
+	log.Printf("fetch-rates: %s — OpenRouter returned %d rates", cardName, len(wrapper.Rates))
 	return wrapper.Rates, nil
 }
 
