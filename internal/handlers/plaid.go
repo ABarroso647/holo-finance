@@ -169,6 +169,10 @@ func (h *PlaidHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		log.Printf("apply rules after sync: %v", err)
 	}
 
+	if err := categorize.DetectSalary(r.Context(), h.queries); err != nil {
+		log.Printf("salary detection: %v", err) // non-fatal
+	}
+
 	if r.Header.Get("HX-Request") == "true" {
 		w.Header().Set("Content-Type", "text/html")
 		w.Header().Set("HX-Trigger", "txnTableRefresh")
