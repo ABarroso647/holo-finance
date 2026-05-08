@@ -17,3 +17,13 @@ SELECT * FROM plaid_cursors;
 
 -- name: ResetCursor :exec
 UPDATE plaid_cursors SET cursor = NULL WHERE item_id = sqlc.arg(item_id);
+
+-- name: ListAccountsForDebug :many
+SELECT a.id, a.plaid_account_id, a.name, a.type, a.subtype, a.institution_id,
+       i.plaid_item_id, i.plaid_access_token, i.name as institution_name
+FROM accounts a
+JOIN institutions i ON a.institution_id = i.id
+ORDER BY i.name, a.name;
+
+-- name: DeleteAccountByID :exec
+DELETE FROM accounts WHERE id = sqlc.arg(id);
