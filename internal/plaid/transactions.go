@@ -3,7 +3,9 @@ package plaidclient
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"log"
 
 	"holo/internal/categorize"
 	"holo/internal/db/generated"
@@ -75,6 +77,10 @@ func SyncTransactions(ctx context.Context, api *plaid.APIClient, queries *db.Que
 func upsertTransaction(ctx context.Context, queries *db.Queries, txn plaid.Transaction) error {
 	accountID, err := getAccountIDByPlaidID(ctx, queries, txn.GetAccountId())
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			log.Printf("sync: skipping txn %s — account %s removed locally", txn.GetTransactionId(), txn.GetAccountId())
+			return nil
+		}
 		return err
 	}
 
