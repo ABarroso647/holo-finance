@@ -401,6 +401,9 @@ type ListTransactionsRow struct {
 	InstitutionName    *string   `json:"institution_name"`
 	CategoryName       *string   `json:"category_name"`
 	CategoryColor      *string   `json:"category_color"`
+	BestCardName       *string   `json:"best_card_name"`
+	BestCardRate       *float64  `json:"best_card_rate"`
+	EarnedCardRate     *float64  `json:"earned_card_rate"`
 }
 
 func (q *Queries) ListTransactions(ctx context.Context, arg ListTransactionsParams) ([]ListTransactionsRow, error) {
@@ -600,7 +603,40 @@ SELECT t.id, t.account_id, t.plaid_transaction_id, t.date, t.authorized_date, t.
     COALESCE(a.display_name, a.name) as account_name,
     i.name as institution_name,
     c.name as category_name,
-    c.color as category_color
+    c.color as category_color,
+    (SELECT COALESCE(a2.display_name, a2.name)
+     FROM card_reward_rates r2
+     JOIN accounts a2 ON r2.account_id = a2.id AND a2.type = 'credit'
+     WHERE (r2.category_id = t.category_id
+            OR r2.category_id = (SELECT c2.parent_id FROM categories c2 WHERE c2.id = t.category_id)
+            OR r2.category_id IS NULL)
+     ORDER BY
+         (r2.category_id = t.category_id) DESC,
+         (r2.category_id IS NOT NULL) DESC,
+         r2.reward_rate DESC
+     LIMIT 1) as best_card_name,
+    (SELECT r2.reward_rate
+     FROM card_reward_rates r2
+     JOIN accounts a2 ON r2.account_id = a2.id AND a2.type = 'credit'
+     WHERE (r2.category_id = t.category_id
+            OR r2.category_id = (SELECT c2.parent_id FROM categories c2 WHERE c2.id = t.category_id)
+            OR r2.category_id IS NULL)
+     ORDER BY
+         (r2.category_id = t.category_id) DESC,
+         (r2.category_id IS NOT NULL) DESC,
+         r2.reward_rate DESC
+     LIMIT 1) as best_card_rate,
+    (SELECT r3.reward_rate
+     FROM card_reward_rates r3
+     WHERE r3.account_id = t.account_id
+       AND (r3.category_id = t.category_id
+            OR r3.category_id = (SELECT c3.parent_id FROM categories c3 WHERE c3.id = t.category_id)
+            OR r3.category_id IS NULL)
+     ORDER BY
+         (r3.category_id = t.category_id) DESC,
+         (r3.category_id IS NOT NULL) DESC,
+         r3.reward_rate DESC
+     LIMIT 1) as earned_card_rate
 FROM transactions t
 LEFT JOIN accounts a ON t.account_id = a.id
 LEFT JOIN institutions i ON a.institution_id = i.id
@@ -651,6 +687,9 @@ type SearchTransactionsRow struct {
 	InstitutionName    *string   `json:"institution_name"`
 	CategoryName       *string   `json:"category_name"`
 	CategoryColor      *string   `json:"category_color"`
+	BestCardName       *string   `json:"best_card_name"`
+	BestCardRate       *float64  `json:"best_card_rate"`
+	EarnedCardRate     *float64  `json:"earned_card_rate"`
 }
 
 func (q *Queries) SearchTransactions(ctx context.Context, arg SearchTransactionsParams) ([]SearchTransactionsRow, error) {
@@ -694,6 +733,9 @@ func (q *Queries) SearchTransactions(ctx context.Context, arg SearchTransactions
 			&i.InstitutionName,
 			&i.CategoryName,
 			&i.CategoryColor,
+			&i.BestCardName,
+			&i.BestCardRate,
+			&i.EarnedCardRate,
 		); err != nil {
 			return nil, err
 		}
