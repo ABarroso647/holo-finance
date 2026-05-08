@@ -1,10 +1,12 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
 
 	"holo/internal/components"
@@ -110,7 +112,9 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 		return budgetProgress[i].PctUsed > budgetProgress[j].PctUsed
 	})
 
-	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth, salaryEstimates, budgetProgress).Render(ctx, w)
+	tracker := buildBudgetTracker(ctx, h.queries, now)
+
+	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth, salaryEstimates, budgetProgress, tracker).Render(ctx, w)
 }
 
 func buildMonthlyFlowsJSON(flows []db.GetMonthlyFlowsRow) string {
@@ -200,6 +204,108 @@ func (h *DashboardHandler) CategoryTxns(w http.ResponseWriter, r *http.Request) 
 	if len(rows) == 0 {
 		fmt.Fprintf(w, `<tr><td colspan="4" style="padding:1rem;color:var(--muted);font-size:0.8rem">No transactions</td></tr>`)
 	}
+}
+
+// needsCategories maps parent category IDs to the Needs bucket.
+var needsCategories = map[string]bool{
+	"cat_housing":   true,
+	"cat_health":    true,
+	"cat_transport": true,
+}
+
+// wantsCategories maps parent category IDs to the Wants bucket.
+var wantsCategories = map[string]bool{
+	"cat_food":          true,
+	"cat_entertainment": true,
+	"cat_shopping":      true,
+	"cat_personal":      true,
+	"cat_travel":        true,
+	"cat_other":         true,
+	"cat_finance":       true,
+	"cat_education":     true,
+}
+
+func buildBudgetTracker(ctx context.Context, queries *db.Queries, now time.Time) components.BudgetTracker {
+	// Read annual income setting.
+	incomeStr, _ := queries.GetSetting(ctx, "invest_annual_income")
+	if incomeStr == "" {
+		return components.BudgetTracker{Available: false}
+	}
+	annualIncome, err := strconv.ParseFloat(incomeStr, 64)
+	if err != nil || annualIncome <= 0 {
+		return components.BudgetTracker{Available: false}
+	}
+	monthlyIncome := annualIncome / 12.0
+
+	// Read configurable percentages (with defaults).
+	needsPct := readFloatSetting(ctx, queries, "budget_needs_pct", 50.0)
+	wantsPct := readFloatSetting(ctx, queries, "budget_wants_pct", 30.0)
+	savingsPct := readFloatSetting(ctx, queries, "budget_savings_pct", 20.0)
+
+	// Past 3 months date range.
+	threeMonthsAgo := now.AddDate(0, -3, 0).Format("2006-01-02")
+	today := now.Format("2006-01-02")
+
+	cats, _ := queries.GetSpendingByCategory(ctx, db.GetSpendingByCategoryParams{
+		Date:   threeMonthsAgo,
+		Date_2: today,
+	})
+
+	var needsTotal, wantsTotal float64
+	for _, c := range cats {
+		if needsCategories[c.CategoryID] {
+			needsTotal += c.Total
+		} else if wantsCategories[c.CategoryID] {
+			wantsTotal += c.Total
+		}
+	}
+
+	// Monthly averages over 3 months.
+	avgNeeds := needsTotal / 3.0
+	avgWants := wantsTotal / 3.0
+	avgSavings := monthlyIncome - avgNeeds - avgWants
+
+	// Targets.
+	needsTarget := monthlyIncome * needsPct / 100.0
+	wantsTarget := monthlyIncome * wantsPct / 100.0
+	savingsTarget := monthlyIncome * savingsPct / 100.0
+
+	// Actual percentages.
+	var needsActualPct, wantsActualPct, savingsActualPct float64
+	if monthlyIncome > 0 {
+		needsActualPct = avgNeeds / monthlyIncome * 100.0
+		wantsActualPct = avgWants / monthlyIncome * 100.0
+		savingsActualPct = avgSavings / monthlyIncome * 100.0
+	}
+
+	return components.BudgetTracker{
+		NeedsPct:         needsPct,
+		WantsPct:         wantsPct,
+		SavingsPct:       savingsPct,
+		AvgMonthlyIncome: monthlyIncome,
+		AvgNeedsSpend:    avgNeeds,
+		AvgWantsSpend:    avgWants,
+		AvgSavingsActual: avgSavings,
+		NeedsTarget:      needsTarget,
+		WantsTarget:      wantsTarget,
+		SavingsTarget:    savingsTarget,
+		NeedsActualPct:   needsActualPct,
+		WantsActualPct:   wantsActualPct,
+		SavingsActualPct: savingsActualPct,
+		Available:        true,
+	}
+}
+
+func readFloatSetting(ctx context.Context, queries *db.Queries, key string, defaultVal float64) float64 {
+	s, err := queries.GetSetting(ctx, key)
+	if err != nil || s == "" {
+		return defaultVal
+	}
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return defaultVal
+	}
+	return v
 }
 
 func toFloat64(v interface{}) float64 {

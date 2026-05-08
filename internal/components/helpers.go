@@ -268,6 +268,28 @@ func shortDate(s string) string {
 	return s
 }
 
+// BudgetTracker holds the computed 50/30/20 budget comparison for the dashboard.
+type BudgetTracker struct {
+	NeedsPct   float64
+	WantsPct   float64
+	SavingsPct float64
+
+	AvgMonthlyIncome float64
+	AvgNeedsSpend    float64
+	AvgWantsSpend    float64
+	AvgSavingsActual float64
+
+	NeedsTarget   float64
+	WantsTarget   float64
+	SavingsTarget float64
+
+	NeedsActualPct   float64
+	WantsActualPct   float64
+	SavingsActualPct float64
+
+	Available bool
+}
+
 func spendingRanges() []SpendingRange {
 	now := time.Now().UTC()
 	today := now.Format("2006-01-02")

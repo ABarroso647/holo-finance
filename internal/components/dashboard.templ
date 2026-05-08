@@ -6,7 +6,7 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool, salaryEstimates []db.SalaryEstimate, budgetProgress []BudgetProgress) {
+templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool, salaryEstimates []db.SalaryEstimate, budgetProgress []BudgetProgress, tracker BudgetTracker) {
 	{{ net := income - spending }}
 	{{ savingsRate := 0.0 }}
 	if income > 0 {
@@ -196,6 +196,20 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				</script>
 			</div>
 		</div>
+		if tracker.Available {
+			<div class="card" style="margin-bottom:1.5rem">
+				<div style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:1rem">
+					50/30/20 Budget Tracker <span style="font-weight:400;text-transform:none;letter-spacing:0">(3-month avg · { fmt.Sprintf("$%.0f/mo income", tracker.AvgMonthlyIncome) })</span>
+				</div>
+				@budgetTrackerRow("Needs", tracker.NeedsPct, tracker.AvgNeedsSpend, tracker.NeedsActualPct, tracker.NeedsTarget, false)
+				@budgetTrackerRow("Wants", tracker.WantsPct, tracker.AvgWantsSpend, tracker.WantsActualPct, tracker.WantsTarget, false)
+				@budgetTrackerRow("Savings", tracker.SavingsPct, tracker.AvgSavingsActual, tracker.SavingsActualPct, tracker.SavingsTarget, true)
+			</div>
+		} else {
+			<div class="card" style="margin-bottom:1.5rem;padding:0.75rem 1rem">
+				<span style="font-size:0.8rem;color:var(--muted)">Set your annual income in <a href="/invest" style="color:var(--accent)">Settings → Invest</a> to see budget tracking.</span>
+			</div>
+		}
 		<div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
 			<div class="card" style="padding:0" id="dash-txn-card">
 				<div style="padding:0.75rem 1rem;font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
@@ -375,4 +389,57 @@ func institutionOrder(accounts []db.ListAccountsWithInstitutionRow) []string {
 		}
 	}
 	return order
+}
+
+// budgetTrackerRowColor returns the CSS color variable for a budget row.
+// For spending rows (needs/wants): green if at/under target, amber if 0-10% over, red if >10% over.
+// For savings row: green if at/over target, amber if 0-10% under, red if >10% under.
+func budgetTrackerRowColor(actualPct, targetPct float64, isSavings bool) string {
+	if isSavings {
+		gap := targetPct - actualPct // positive = under target
+		if gap <= 0 {
+			return "var(--green)"
+		} else if gap <= 10 {
+			return "var(--yellow, #f59e0b)"
+		}
+		return "var(--red)"
+	}
+	over := actualPct - targetPct // positive = over target
+	if over <= 0 {
+		return "var(--green)"
+	} else if over <= 10 {
+		return "var(--yellow, #f59e0b)"
+	}
+	return "var(--red)"
+}
+
+// budgetBarWidth returns a progress bar width percentage clamped to 100.
+func budgetBarWidth(actualPct, targetPct float64) float64 {
+	if targetPct <= 0 {
+		return 0
+	}
+	pct := actualPct / targetPct * 100
+	if pct > 100 {
+		return 100
+	}
+	if pct < 0 {
+		return 0
+	}
+	return pct
+}
+
+// budgetTrackerRow renders a single row of the 50/30/20 tracker card.
+templ budgetTrackerRow(label string, targetPct float64, actualAmt float64, actualPct float64, targetAmt float64, isSavings bool) {
+	{{ color := budgetTrackerRowColor(actualPct, targetPct, isSavings) }}
+	{{ barWidth := budgetBarWidth(actualPct, targetPct) }}
+	<div style="margin-bottom:0.85rem">
+		<div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:0.3rem;gap:0.5rem">
+			<span style="font-size:0.8rem;font-weight:600;min-width:5rem">{ label } <span style="font-weight:400;color:var(--muted);font-size:0.72rem">(target { fmt.Sprintf("%.0f%%", targetPct) })</span></span>
+			<span style="font-size:0.8rem;color:var(--muted)">{ fmt.Sprintf("$%.0f/mo", actualAmt) }</span>
+			<span style={ fmt.Sprintf("font-size:0.8rem;font-weight:600;color:%s;min-width:3.5rem;text-align:right", color) }>{ fmt.Sprintf("%.1f%%", actualPct) }</span>
+		</div>
+		<div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+			<div style={ fmt.Sprintf("height:100%%;width:%.1f%%;background:%s;border-radius:3px;transition:width 0.3s", barWidth, color) }></div>
+		</div>
+	</div>
 }
