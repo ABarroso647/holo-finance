@@ -162,6 +162,41 @@ func DedupeCategories(cats []db.Category) []db.Category {
 	return out
 }
 
+// BudgetProgress holds per-category budget data for the dashboard.
+type BudgetProgress struct {
+	BudgetID      string
+	CategoryID    string
+	CategoryName  string
+	CategoryColor string
+	MonthlyLimit  float64
+	Spent         float64
+	PctUsed       float64
+}
+
+func budgetBarColor(pct float64) string {
+	if pct >= 1.0 {
+		return "var(--red)"
+	}
+	if pct >= 0.8 {
+		return "#f59e0b"
+	}
+	return "var(--green)"
+}
+
+func budgetColor(c string) string {
+	if c != "" {
+		return c
+	}
+	return "#64748b"
+}
+
+func minPct(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // SpendingRange is a quick-select time range for the spending page.
 type SpendingRange struct {
 	Label string

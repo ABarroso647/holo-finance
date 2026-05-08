@@ -185,3 +185,11 @@ CREATE TABLE IF NOT EXISTS recurring_exclusions (
     merchant   TEXT PRIMARY KEY,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS category_budgets (
+    id            TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+    category_id   TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+    monthly_limit REAL NOT NULL CHECK(monthly_limit > 0),
+    created_at    TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(category_id)
+);

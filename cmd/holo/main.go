@@ -141,6 +141,8 @@ func main() {
 		r.Post("/api/categories/{id}", settingsHandler.UpdateCategory)
 		r.Post("/api/settings/openrouter-model", settingsHandler.UpdateModel)
 		r.Delete("/api/rules/{id}", settingsHandler.DeleteRule)
+		r.Post("/api/budgets/{category_id}", settingsHandler.UpsertBudget)
+		r.Delete("/api/budgets/{id}", settingsHandler.DeleteBudget)
 
 		if api != nil {
 			plaidHandler := handlers.NewPlaidHandler(api, queries)

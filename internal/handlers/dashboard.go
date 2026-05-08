@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"holo/internal/components"
@@ -77,7 +78,39 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 	catsJSON := buildDashCatsJSON(topCats, monthStart, monthEnd)
 
-	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth, salaryEstimates).Render(ctx, w)
+	budgets, _ := h.queries.ListBudgets(ctx)
+
+	spendMap := map[string]float64{}
+	for _, s := range topCats {
+		spendMap[s.CategoryID] = s.Total
+	}
+
+	var budgetProgress []components.BudgetProgress
+	for _, b := range budgets {
+		spent := spendMap[b.CategoryID]
+		pct := 0.0
+		if b.MonthlyLimit > 0 {
+			pct = spent / b.MonthlyLimit
+		}
+		color := ""
+		if b.CategoryColor != nil {
+			color = *b.CategoryColor
+		}
+		budgetProgress = append(budgetProgress, components.BudgetProgress{
+			BudgetID:      b.ID,
+			CategoryID:    b.CategoryID,
+			CategoryName:  b.CategoryName,
+			CategoryColor: color,
+			MonthlyLimit:  b.MonthlyLimit,
+			Spent:         spent,
+			PctUsed:       pct,
+		})
+	}
+	sort.Slice(budgetProgress, func(i, j int) bool {
+		return budgetProgress[i].PctUsed > budgetProgress[j].PctUsed
+	})
+
+	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth, salaryEstimates, budgetProgress).Render(ctx, w)
 }
 
 func buildMonthlyFlowsJSON(flows []db.GetMonthlyFlowsRow) string {
