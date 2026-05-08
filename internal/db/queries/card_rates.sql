@@ -42,6 +42,9 @@ WHERE id = sqlc.arg(id);
 -- name: ListAllCardRewardRatesWithNullCategory :many
 SELECT * FROM card_reward_rates WHERE category_id IS NULL AND raw_category IS NOT NULL;
 
+-- name: CountCardRewardRates :one
+SELECT CAST(COUNT(*) AS INTEGER) FROM card_reward_rates;
+
 -- name: GetBestRateForCategory :one
 SELECT r.reward_rate, r.account_id, r.notes
 FROM card_reward_rates r

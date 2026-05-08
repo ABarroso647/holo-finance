@@ -11,6 +11,9 @@ templ ConnectPage() {
 				Connect Bank Account
 			</button>
 		</div>
+		<p style="margin-top:1.5rem;font-size:0.8rem;color:var(--muted)">
+			<a href="/api/debug/sync-accounts" style="color:var(--muted)">Sync diagnostic →</a>
+		</p>
 		<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
 		<script>
 			async function openPlaidLink(receivedRedirectUri) {

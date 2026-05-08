@@ -6,7 +6,7 @@ import (
 	"holo/internal/db/generated"
 )
 
-templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, accounts []db.Account, allTags []db.Tag, tagMap map[string][]db.Tag, total, page, limit int, filters TxnFilters, summary *TxnSummary) {
+templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, accounts []db.Account, allTags []db.Tag, tagMap map[string][]db.Tag, total, page, limit int, filters TxnFilters, summary *TxnSummary, hasCards bool) {
 	@Layout("Transactions") {
 		<div class="page-header">
 			<h1>Transactions</h1>
@@ -18,9 +18,11 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 					hx-swap="innerHTML"
 					hx-indicator="#sync-spinner"
 					hx-disabled-elt="this"
+					hx-on:htmx:before-request="this.querySelector('.btn-label').textContent='Syncing…'"
+					hx-on:htmx:after-request="this.querySelector('.btn-label').textContent='Sync'"
 				>
 					<span id="sync-spinner" class="htmx-indicator">⟳</span>
-					Sync
+					<span class="btn-label">Sync</span>
 				</button>
 				<button
 					class="btn btn-primary"
@@ -29,9 +31,11 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 					hx-swap="innerHTML"
 					hx-indicator="#cat-spinner"
 					hx-disabled-elt="this"
+					hx-on:htmx:before-request="this.querySelector('.btn-label').textContent='Categorizing…'"
+					hx-on:htmx:after-request="this.querySelector('.btn-label').textContent='Categorize'"
 				>
 					<span id="cat-spinner" class="htmx-indicator">⟳</span>
-					Categorize
+					<span class="btn-label">Categorize</span>
 				</button>
 			</div>
 		</div>
@@ -219,12 +223,12 @@ templ TransactionsPage(txns []db.ListTransactionsRow, categories []db.Category, 
 			hx-swap="innerHTML"
 			hx-include="#txn-filter-form"
 		>
-			@TxnTableContent(txns, categories, tagMap, allTags, total, page, limit, filters, summary)
+			@TxnTableContent(txns, categories, tagMap, allTags, total, page, limit, filters, summary, hasCards)
 		</div>
 	}
 }
 
-templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, tagMap map[string][]db.Tag, allTags []db.Tag, total, page, limit int, filters TxnFilters, summary *TxnSummary) {
+templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, tagMap map[string][]db.Tag, allTags []db.Tag, total, page, limit int, filters TxnFilters, summary *TxnSummary, hasCards bool) {
 	if summary != nil && filters.IsActive() {
 		<div class="card" style="padding:0.75rem 1rem;margin-bottom:0.75rem;display:flex;gap:2rem;align-items:center;flex-wrap:wrap">
 			<span style="font-size:0.82rem;color:var(--muted)">{ fmt.Sprintf("%d transactions", summary.Count) }</span>
@@ -256,16 +260,23 @@ templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, t
 						<th>Account</th>
 						<th>Category</th>
 						<th style="text-align:right">Amount</th>
+						if hasCards {
+							<th style="text-align:right;font-size:0.75rem">Rewards</th>
+						}
 					</tr>
 				</thead>
 				<tbody>
 					for _, group := range groupByDate(txns) {
 						<tr class="date-group-header">
-							<td colspan="4">{ group.Label }</td>
+							if hasCards {
+								<td colspan="5">{ group.Label }</td>
+							} else {
+								<td colspan="4">{ group.Label }</td>
+							}
 							<td style="text-align:right;font-variant-numeric:tabular-nums;font-size:0.75rem">{ formatDayNet(group.Net) }</td>
 						</tr>
 						for _, txn := range group.Txns {
-							@TransactionRow(txn, categories, tagMap[txn.ID], allTags)
+							@TransactionRow(txn, categories, tagMap[txn.ID], allTags, hasCards)
 						}
 					}
 				</tbody>
@@ -277,7 +288,7 @@ templ TxnTableContent(txns []db.ListTransactionsRow, categories []db.Category, t
 	</div>
 }
 
-templ TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags []db.Tag, allTags []db.Tag) {
+templ TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags []db.Tag, allTags []db.Tag, hasCards bool) {
 	<tr id={ fmt.Sprintf("txn-%s", txn.ID) }>
 		<td style="color:var(--muted);font-size:0.8rem;white-space:nowrap">{ txn.Date }</td>
 		<td>
@@ -303,6 +314,21 @@ templ TransactionRow(txn db.ListTransactionsRow, categories []db.Category, tags 
 		<td style="text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap">
 			@AmountCell(txn.Amount, txn.Currency)
 		</td>
+		if hasCards {
+			<td style="text-align:right;font-size:0.75rem">
+				if txn.EarnedCardRate != nil && *txn.EarnedCardRate > 0 {
+					<span style="display:block;font-weight:600;color:var(--green)">{ fmt.Sprintf("%.1f%%", *txn.EarnedCardRate) }</span>
+					if txn.BestCardRate != nil && *txn.BestCardRate > *txn.EarnedCardRate + 0.4 {
+						<span style="font-size:0.68rem;color:#f59e0b">→ { fmt.Sprintf("%.1f%%", *txn.BestCardRate) } { func() string { if txn.BestCardName != nil { return *txn.BestCardName }; return "" }() }</span>
+					}
+				} else if txn.BestCardRate != nil && *txn.BestCardRate > 0 {
+					<span style="display:block;color:var(--muted)">Best: { fmt.Sprintf("%.1f%%", *txn.BestCardRate) }</span>
+					if txn.BestCardName != nil {
+						<span style="font-size:0.68rem;color:var(--muted)">{ *txn.BestCardName }</span>
+					}
+				}
+			</td>
+		}
 	</tr>
 }
 

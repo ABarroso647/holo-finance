@@ -7,7 +7,24 @@ package db
 
 import (
 	"context"
+	"time"
 )
+
+const getCPPCache = `-- name: GetCPPCache :one
+SELECT program, cpp, source, fetched_at FROM cpp_cache WHERE program = ?1
+`
+
+func (q *Queries) GetCPPCache(ctx context.Context, program string) (CppCache, error) {
+	row := q.db.QueryRowContext(ctx, getCPPCache, program)
+	var i CppCache
+	err := row.Scan(
+		&i.Program,
+		&i.Cpp,
+		&i.Source,
+		&i.FetchedAt,
+	)
+	return i, err
+}
 
 const getCardConfig = `-- name: GetCardConfig :one
 SELECT account_id, points_program, reward_type, points_cpp, cpp_overridden FROM card_config WHERE account_id = ?1
@@ -57,6 +74,58 @@ func (q *Queries) ListCardConfigs(ctx context.Context) ([]CardConfig, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateCardConfigPoints = `-- name: UpdateCardConfigPoints :exec
+INSERT INTO card_config (account_id, points_program, reward_type, points_cpp, cpp_overridden)
+VALUES (?1, ?2, 'points', ?3, ?4)
+ON CONFLICT(account_id) DO UPDATE SET
+    points_program = excluded.points_program,
+    points_cpp     = CASE WHEN card_config.cpp_overridden = 1 THEN card_config.points_cpp ELSE excluded.points_cpp END,
+    cpp_overridden = card_config.cpp_overridden
+`
+
+type UpdateCardConfigPointsParams struct {
+	AccountID     string  `json:"account_id"`
+	PointsProgram *string `json:"points_program"`
+	PointsCpp     float64 `json:"points_cpp"`
+	CppOverridden int64   `json:"cpp_overridden"`
+}
+
+func (q *Queries) UpdateCardConfigPoints(ctx context.Context, arg UpdateCardConfigPointsParams) error {
+	_, err := q.db.ExecContext(ctx, updateCardConfigPoints,
+		arg.AccountID,
+		arg.PointsProgram,
+		arg.PointsCpp,
+		arg.CppOverridden,
+	)
+	return err
+}
+
+const upsertCPPCache = `-- name: UpsertCPPCache :exec
+INSERT INTO cpp_cache (program, cpp, source, fetched_at)
+VALUES (?1, ?2, ?3, ?4)
+ON CONFLICT(program) DO UPDATE SET
+    cpp        = excluded.cpp,
+    source     = excluded.source,
+    fetched_at = excluded.fetched_at
+`
+
+type UpsertCPPCacheParams struct {
+	Program   string    `json:"program"`
+	Cpp       float64   `json:"cpp"`
+	Source    string    `json:"source"`
+	FetchedAt time.Time `json:"fetched_at"`
+}
+
+func (q *Queries) UpsertCPPCache(ctx context.Context, arg UpsertCPPCacheParams) error {
+	_, err := q.db.ExecContext(ctx, upsertCPPCache,
+		arg.Program,
+		arg.Cpp,
+		arg.Source,
+		arg.FetchedAt,
+	)
+	return err
 }
 
 const upsertCardConfig = `-- name: UpsertCardConfig :exec

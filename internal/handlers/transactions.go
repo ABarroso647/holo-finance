@@ -45,6 +45,9 @@ func (h *TransactionHandler) List(w http.ResponseWriter, r *http.Request) {
 	accounts, _ := h.queries.ListAccounts(r.Context())
 	allTags, _ := h.queries.ListTags(r.Context())
 
+	rateCount, _ := h.queries.CountCardRewardRates(r.Context())
+	hasCards := rateCount > 0
+
 	tagMap := make(map[string][]db.Tag)
 	for _, txn := range txns {
 		tags, _ := h.queries.ListTagsForTransaction(r.Context(), txn.ID)
@@ -54,11 +57,11 @@ func (h *TransactionHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("HX-Request") == "true" {
-		components.TxnTableContent(txns, categories, tagMap, allTags, int(total), page, limit, filters, summary).Render(r.Context(), w)
+		components.TxnTableContent(txns, categories, tagMap, allTags, int(total), page, limit, filters, summary, hasCards).Render(r.Context(), w)
 		return
 	}
 
-	components.TransactionsPage(txns, categories, accounts, allTags, tagMap, int(total), page, limit, filters, summary).Render(r.Context(), w)
+	components.TransactionsPage(txns, categories, accounts, allTags, tagMap, int(total), page, limit, filters, summary, hasCards).Render(r.Context(), w)
 }
 
 func (h *TransactionHandler) runSummary(r *http.Request, f components.TxnFilters) *components.TxnSummary {
@@ -140,5 +143,8 @@ func searchRowToList(r db.SearchTransactionsRow) db.ListTransactionsRow {
 		InstitutionName:    r.InstitutionName,
 		CategoryName:       r.CategoryName,
 		CategoryColor:      r.CategoryColor,
+		BestCardName:       r.BestCardName,
+		BestCardRate:       r.BestCardRate,
+		EarnedCardRate:     r.EarnedCardRate,
 	}
 }

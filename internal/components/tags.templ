@@ -1,0 +1,280 @@
+package components
+
+import (
+	"fmt"
+	"time"
+	db "holo/internal/db/generated"
+)
+
+templ TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, tagsJSON string, catSpend []db.GetSpendingByCategoryRow, catJSON string) {
+	@Layout("Tags") {
+		<div class="page-header">
+			<h1>Tags</h1>
+			<div style="display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap">
+				for _, r := range tagsQuickRanges() {
+					<a href={ templ.SafeURL(r.URL) } class="btn btn-ghost" style="font-size:0.75rem;padding:0.2rem 0.6rem">{ r.Label }</a>
+				}
+				if dateFrom != "" || dateTo != "" {
+					<a href="/tags" class="btn btn-ghost" style="font-size:0.75rem;padding:0.2rem 0.6rem;color:var(--muted)">✕ clear</a>
+				}
+			</div>
+		</div>
+		if dateFrom != "" || dateTo != "" {
+			<p style="font-size:0.8rem;color:var(--muted);margin-bottom:1rem">
+				if dateFrom != "" && dateTo != "" {
+					{ dateFrom } – { dateTo }
+				} else if dateFrom != "" {
+					From { dateFrom }
+				} else {
+					Until { dateTo }
+				}
+			</p>
+		}
+		if len(spend) == 0 && len(allTags) == 0 {
+			<div class="card" style="padding:2rem;text-align:center;color:var(--muted)">
+				<p>No tags yet. Create tags in Settings and add them to transactions.</p>
+			</div>
+		} else if len(spend) == 0 {
+			<div class="card" style="padding:2rem;text-align:center;color:var(--muted)">
+				<p>No tagged spending for this period.</p>
+			</div>
+		} else {
+			{{ total := tagsSpendTotal(spend) }}
+			<p style="font-size:0.85rem;color:var(--muted);margin-bottom:1rem">
+				{ fmt.Sprintf("%d tags · $%.2f total tagged spend", len(spend), total) }
+			</p>
+			<div class="card" style="margin-bottom:1.5rem">
+				<h2>Spend by Tag</h2>
+				<div id="tags-chart-data" hidden data-json={ tagsJSON }></div>
+				<div style={ fmt.Sprintf("position:relative;height:%dpx", 60+len(spend)*32) }>
+					<canvas id="tags-chart"></canvas>
+				</div>
+				<script>
+					(function() {
+						try {
+							if (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+							const el = document.getElementById('tags-chart-data');
+							if (!el) throw new Error('tags-chart-data element not found');
+							const data = JSON.parse(el.dataset.json);
+							new Chart(document.getElementById('tags-chart'), {
+								type: 'bar',
+								data: {
+									labels: data.labels,
+									datasets: [{
+										data: data.values,
+										backgroundColor: data.colors,
+										borderWidth: 0
+									}]
+								},
+								options: {
+									indexAxis: 'y',
+									maintainAspectRatio: false,
+									plugins: {
+										legend: { display: false },
+										tooltip: {
+											callbacks: {
+												label: function(ctx) {
+													return ' $' + ctx.raw.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+												}
+											}
+										}
+									},
+									scales: {
+										x: {
+											ticks: { color: '#64748b', callback: v => '$' + v.toLocaleString() },
+											grid: { color: '#2a2d3a' }
+										},
+										y: {
+											ticks: { color: '#e2e8f0' },
+											grid: { color: '#2a2d3a' }
+										}
+									}
+								}
+							});
+						} catch(e) {
+							document.getElementById('tags-chart').insertAdjacentHTML('afterend', '<p style="color:#ef4444;font-size:0.75rem">Chart error: '+e.message+'</p>');
+						}
+					})();
+				</script>
+			</div>
+			<div class="card" style="padding:0">
+				<table>
+					<thead>
+						<tr>
+							<th>Tag</th>
+							<th style="text-align:right">Total Spend</th>
+							<th style="text-align:right">Transactions</th>
+							<th style="text-align:right">Avg per Txn</th>
+						</tr>
+					</thead>
+					<tbody>
+						for _, row := range spend {
+							<tr>
+								<td>
+									<a
+										href={ templ.SafeURL(tagsFilterURL(row.ID, dateFrom, dateTo)) }
+										style="display:inline-flex;align-items:center;gap:0.35rem;text-decoration:none"
+									>
+										<span class="tag-pill">
+											<span style={ fmt.Sprintf("width:6px;height:6px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", row.Color) }></span>
+											{ row.Name }
+										</span>
+									</a>
+								</td>
+								<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("$%.2f", row.Total) }</td>
+								<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("%d", row.TxnCount) }</td>
+								<td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)">
+									if row.TxnCount > 0 {
+										{ fmt.Sprintf("$%.2f", row.Total/float64(row.TxnCount)) }
+									} else {
+										—
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		}
+		if len(catSpend) > 0 {
+			{{ catTotal := catSpendTotal(catSpend) }}
+			<div class="card" style="margin-top:1.5rem;margin-bottom:1.5rem">
+				<h2>Spend by Category</h2>
+				<div id="cat-chart-data" hidden data-json={ catJSON }></div>
+				<div style={ fmt.Sprintf("position:relative;height:%dpx", 60+len(catSpend)*32) }>
+					<canvas id="cat-chart"></canvas>
+				</div>
+				<script>
+					(function() {
+						try {
+							if (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+							const el = document.getElementById('cat-chart-data');
+							if (!el) throw new Error('cat-chart-data element not found');
+							const data = JSON.parse(el.dataset.json);
+							new Chart(document.getElementById('cat-chart'), {
+								type: 'bar',
+								data: {
+									labels: data.labels,
+									datasets: [{
+										data: data.values,
+										backgroundColor: data.colors,
+										borderWidth: 0
+									}]
+								},
+								options: {
+									indexAxis: 'y',
+									maintainAspectRatio: false,
+									plugins: {
+										legend: { display: false },
+										tooltip: {
+											callbacks: {
+												label: function(ctx) {
+													return ' $' + ctx.raw.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+												}
+											}
+										}
+									},
+									scales: {
+										x: {
+											ticks: { color: '#64748b', callback: v => '$' + v.toLocaleString() },
+											grid: { color: '#2a2d3a' }
+										},
+										y: {
+											ticks: { color: '#e2e8f0' },
+											grid: { color: '#2a2d3a' }
+										}
+									}
+								}
+							});
+						} catch(e) {
+							document.getElementById('cat-chart').insertAdjacentHTML('afterend', '<p style="color:#ef4444;font-size:0.75rem">Chart error: '+e.message+'</p>');
+						}
+					})();
+				</script>
+				<div style="margin-top:1rem">
+					<table>
+						<thead>
+							<tr>
+								<th>Category</th>
+								<th style="text-align:right">Total Spend</th>
+								<th style="text-align:right">Share</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range catSpend {
+								<tr>
+									<td style="display:flex;align-items:center;gap:0.5rem">
+										<span style={ fmt.Sprintf("width:8px;height:8px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", row.CategoryColor) }></span>
+										{ row.CategoryName }
+									</td>
+									<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("$%.2f", row.Total) }</td>
+									<td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)">
+										if catTotal > 0 {
+											{ fmt.Sprintf("%.1f%%", row.Total/catTotal*100) }
+										} else {
+											—
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		}
+	}
+}
+
+type tagsQuickRange struct {
+	Label string
+	URL   string
+}
+
+func tagsQuickRanges() []tagsQuickRange {
+	now := time.Now().UTC()
+	y := now.Year()
+	m := now.Month()
+	today := now.Format("2006-01-02")
+
+	thisMonthStart := fmt.Sprintf("%d-%02d-01", y, m)
+
+	lastMonthEnd := time.Date(y, m, 1, 0, 0, 0, 0, time.UTC).AddDate(0, 0, -1)
+	lastMonthStart := fmt.Sprintf("%d-%02d-01", lastMonthEnd.Year(), lastMonthEnd.Month())
+
+	threeMonthsAgo := now.AddDate(0, -3, 0).Format("2006-01-02")
+	sixMonthsAgo := now.AddDate(0, -6, 0).Format("2006-01-02")
+
+	return []tagsQuickRange{
+		{"This Month", fmt.Sprintf("/tags?date_from=%s&date_to=%s", thisMonthStart, today)},
+		{"Last Month", fmt.Sprintf("/tags?date_from=%s&date_to=%s", lastMonthStart, lastMonthEnd.Format("2006-01-02"))},
+		{"Last 3M", fmt.Sprintf("/tags?date_from=%s&date_to=%s", threeMonthsAgo, today)},
+		{"Last 6M", fmt.Sprintf("/tags?date_from=%s&date_to=%s", sixMonthsAgo, today)},
+	}
+}
+
+func tagsFilterURL(tagID, dateFrom, dateTo string) string {
+	url := "/transactions?tag_id=" + tagID
+	if dateFrom != "" {
+		url += "&date_from=" + dateFrom
+	}
+	if dateTo != "" {
+		url += "&date_to=" + dateTo
+	}
+	return url
+}
+
+func tagsSpendTotal(rows []db.GetSpendByTagRow) float64 {
+	var t float64
+	for _, r := range rows {
+		t += r.Total
+	}
+	return t
+}
+
+func catSpendTotal(rows []db.GetSpendingByCategoryRow) float64 {
+	var t float64
+	for _, r := range rows {
+		t += r.Total
+	}
+	return t
+}

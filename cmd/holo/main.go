@@ -108,10 +108,12 @@ func main() {
 		r.Post("/api/cards/{id}/rates", cardsHandler.AddRate)
 		r.Delete("/api/cards/{id}/rates/{rate_id}", cardsHandler.DeleteRate)
 		r.Post("/api/cards/rematch-rates", cardsHandler.RematchRates)
+		r.Post("/api/cards/{id}/fetch-cpp", cardsHandler.FetchCPP)
 
 		investHandler := handlers.NewInvestHandler(queries)
 		r.Get("/invest", investHandler.Page)
 		r.Post("/api/invest/buffer", investHandler.UpdateBuffer)
+		r.Post("/api/invest/settings", investHandler.UpdateSettings)
 
 		recurringHandler := handlers.NewRecurringHandler(queries)
 		r.Get("/recurring", recurringHandler.Page)
@@ -130,6 +132,7 @@ func main() {
 		r.Post("/api/rules", catHandler.CreateRule)
 
 		tagHandler := handlers.NewTagHandler(queries)
+		r.Get("/tags", tagHandler.Page)
 		r.Post("/api/transactions/{id}/tags", tagHandler.Add)
 		r.Delete("/api/transactions/{id}/tags/{tag_id}", tagHandler.Remove)
 		r.Post("/api/tags", tagHandler.Create)
@@ -144,6 +147,10 @@ func main() {
 		r.Post("/api/budgets/{category_id}", settingsHandler.UpsertBudget)
 		r.Delete("/api/budgets/{id}", settingsHandler.DeleteBudget)
 
+		debugHandler := handlers.NewDebugHandler(queries, api)
+		r.Get("/api/debug/sync-history", debugHandler.SyncHistory)
+		r.Post("/api/debug/reset-cursor/{item_id}", debugHandler.ResetCursor)
+
 		if api != nil {
 			plaidHandler := handlers.NewPlaidHandler(api, queries)
 			r.Post("/api/plaid/link-token", plaidHandler.LinkToken)
@@ -156,14 +163,11 @@ func main() {
 			r.Post("/api/plaid/disconnect", plaidHandler.DisconnectInstitution)
 			r.Post("/api/accounts/{id}/remove", plaidHandler.RemoveAccount)
 			r.Post("/api/plaid/webhook", plaidHandler.Webhook)
-		}
 
-		debugHandler := handlers.NewDebugHandler(queries, api)
-		r.Get("/api/debug/sync-history", debugHandler.SyncHistory)
-		r.Post("/api/debug/reset-cursor/{item_id}", debugHandler.ResetCursor)
-		r.Get("/api/debug/sync-accounts", debugHandler.SyncAccounts)
-		r.Post("/api/debug/sync-accounts/{plaid_account_id}/readd", debugHandler.ReaddAccount)
-		r.Delete("/api/debug/sync-accounts/{account_id}", debugHandler.RemoveStaleAccount)
+			r.Get("/api/debug/sync-accounts", debugHandler.SyncAccounts)
+			r.Post("/api/debug/sync-accounts/{plaid_account_id}/readd", debugHandler.ReaddAccount)
+			r.Delete("/api/debug/sync-accounts/{account_id}", debugHandler.RemoveStaleAccount)
+		}
 	})
 
 	log.Printf("starting holo on :%s", port)
