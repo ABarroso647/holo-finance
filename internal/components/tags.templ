@@ -6,7 +6,7 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, tagsJSON string) {
+templ TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, tagsJSON string, catSpend []db.GetSpendingByCategoryRow, catJSON string) {
 	@Layout("Tags") {
 		<div class="page-header">
 			<h1>Tags</h1>
@@ -136,6 +136,92 @@ templ TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, 
 				</table>
 			</div>
 		}
+		if len(catSpend) > 0 {
+			{{ catTotal := catSpendTotal(catSpend) }}
+			<div class="card" style="margin-top:1.5rem;margin-bottom:1.5rem">
+				<h2>Spend by Category</h2>
+				<div id="cat-chart-data" hidden data-json={ catJSON }></div>
+				<div style={ fmt.Sprintf("position:relative;height:%dpx", 60+len(catSpend)*32) }>
+					<canvas id="cat-chart"></canvas>
+				</div>
+				<script>
+					(function() {
+						try {
+							if (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');
+							const el = document.getElementById('cat-chart-data');
+							if (!el) throw new Error('cat-chart-data element not found');
+							const data = JSON.parse(el.dataset.json);
+							new Chart(document.getElementById('cat-chart'), {
+								type: 'bar',
+								data: {
+									labels: data.labels,
+									datasets: [{
+										data: data.values,
+										backgroundColor: data.colors,
+										borderWidth: 0
+									}]
+								},
+								options: {
+									indexAxis: 'y',
+									maintainAspectRatio: false,
+									plugins: {
+										legend: { display: false },
+										tooltip: {
+											callbacks: {
+												label: function(ctx) {
+													return ' $' + ctx.raw.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+												}
+											}
+										}
+									},
+									scales: {
+										x: {
+											ticks: { color: '#64748b', callback: v => '$' + v.toLocaleString() },
+											grid: { color: '#2a2d3a' }
+										},
+										y: {
+											ticks: { color: '#e2e8f0' },
+											grid: { color: '#2a2d3a' }
+										}
+									}
+								}
+							});
+						} catch(e) {
+							document.getElementById('cat-chart').insertAdjacentHTML('afterend', '<p style="color:#ef4444;font-size:0.75rem">Chart error: '+e.message+'</p>');
+						}
+					})();
+				</script>
+				<div style="margin-top:1rem">
+					<table>
+						<thead>
+							<tr>
+								<th>Category</th>
+								<th style="text-align:right">Total Spend</th>
+								<th style="text-align:right">Share</th>
+							</tr>
+						</thead>
+						<tbody>
+							for _, row := range catSpend {
+								<tr>
+									<td style="display:flex;align-items:center;gap:0.5rem">
+										<span style={ fmt.Sprintf("width:8px;height:8px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", row.CategoryColor) }></span>
+										{ row.CategoryName }
+									</td>
+									<td style="text-align:right;font-variant-numeric:tabular-nums">{ fmt.Sprintf("$%.2f", row.Total) }</td>
+									<td style="text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)">
+										if catTotal > 0 {
+											{ fmt.Sprintf("%.1f%%", row.Total/catTotal*100) }
+										} else {
+											—
+										}
+									</td>
+								</tr>
+							}
+						</tbody>
+					</table>
+				</div>
+			</div>
+		}
 	}
 }
 
@@ -178,6 +264,14 @@ func tagsFilterURL(tagID, dateFrom, dateTo string) string {
 }
 
 func tagsSpendTotal(rows []db.GetSpendByTagRow) float64 {
+	var t float64
+	for _, r := range rows {
+		t += r.Total
+	}
+	return t
+}
+
+func catSpendTotal(rows []db.GetSpendingByCategoryRow) float64 {
 	var t float64
 	for _, r := range rows {
 		t += r.Total

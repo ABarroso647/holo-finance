@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-func TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, tagsJSON string) templ.Component {
+func TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, tagsJSON string, catSpend []db.GetSpendingByCategoryRow, catJSON string) templ.Component {
 	return templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 		templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 		if templ_7745c5c3_CtxErr := ctx.Err(); templ_7745c5c3_CtxErr != nil {
@@ -310,6 +310,112 @@ func TagsPage(spend []db.GetSpendByTagRow, allTags []db.Tag, dateFrom, dateTo, t
 					return templ_7745c5c3_Err
 				}
 			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 28, " ")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if len(catSpend) > 0 {
+				catTotal := catSpendTotal(catSpend)
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 29, "<div class=\"card\" style=\"margin-top:1.5rem;margin-bottom:1.5rem\"><h2>Spend by Category</h2><div id=\"cat-chart-data\" hidden data-json=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var18 string
+				templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(catJSON)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/tags.templ`, Line: 143, Col: 55}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "\"></div><div style=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var19 string
+				templ_7745c5c3_Var19, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("position:relative;height:%dpx", 60+len(catSpend)*32))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/tags.templ`, Line: 144, Col: 82}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\"><canvas id=\"cat-chart\"></canvas></div><script>\n\t\t\t\t\t(function() {\n\t\t\t\t\t\ttry {\n\t\t\t\t\t\t\tif (typeof Chart === 'undefined') throw new Error('Chart.js not loaded');\n\t\t\t\t\t\t\tconst el = document.getElementById('cat-chart-data');\n\t\t\t\t\t\t\tif (!el) throw new Error('cat-chart-data element not found');\n\t\t\t\t\t\t\tconst data = JSON.parse(el.dataset.json);\n\t\t\t\t\t\t\tnew Chart(document.getElementById('cat-chart'), {\n\t\t\t\t\t\t\t\ttype: 'bar',\n\t\t\t\t\t\t\t\tdata: {\n\t\t\t\t\t\t\t\t\tlabels: data.labels,\n\t\t\t\t\t\t\t\t\tdatasets: [{\n\t\t\t\t\t\t\t\t\t\tdata: data.values,\n\t\t\t\t\t\t\t\t\t\tbackgroundColor: data.colors,\n\t\t\t\t\t\t\t\t\t\tborderWidth: 0\n\t\t\t\t\t\t\t\t\t}]\n\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\toptions: {\n\t\t\t\t\t\t\t\t\tindexAxis: 'y',\n\t\t\t\t\t\t\t\t\tmaintainAspectRatio: false,\n\t\t\t\t\t\t\t\t\tplugins: {\n\t\t\t\t\t\t\t\t\t\tlegend: { display: false },\n\t\t\t\t\t\t\t\t\t\ttooltip: {\n\t\t\t\t\t\t\t\t\t\t\tcallbacks: {\n\t\t\t\t\t\t\t\t\t\t\t\tlabel: function(ctx) {\n\t\t\t\t\t\t\t\t\t\t\t\t\treturn ' $' + ctx.raw.toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });\n\t\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\tscales: {\n\t\t\t\t\t\t\t\t\t\tx: {\n\t\t\t\t\t\t\t\t\t\t\tticks: { color: '#64748b', callback: v => '$' + v.toLocaleString() },\n\t\t\t\t\t\t\t\t\t\t\tgrid: { color: '#2a2d3a' }\n\t\t\t\t\t\t\t\t\t\t},\n\t\t\t\t\t\t\t\t\t\ty: {\n\t\t\t\t\t\t\t\t\t\t\tticks: { color: '#e2e8f0' },\n\t\t\t\t\t\t\t\t\t\t\tgrid: { color: '#2a2d3a' }\n\t\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t\t}\n\t\t\t\t\t\t\t});\n\t\t\t\t\t\t} catch(e) {\n\t\t\t\t\t\t\tdocument.getElementById('cat-chart').insertAdjacentHTML('afterend', '<p style=\"color:#ef4444;font-size:0.75rem\">Chart error: '+e.message+'</p>');\n\t\t\t\t\t\t}\n\t\t\t\t\t})();\n\t\t\t\t</script><div style=\"margin-top:1rem\"><table><thead><tr><th>Category</th><th style=\"text-align:right\">Total Spend</th><th style=\"text-align:right\">Share</th></tr></thead> <tbody>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				for _, row := range catSpend {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 32, "<tr><td style=\"display:flex;align-items:center;gap:0.5rem\"><span style=\"")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var20 string
+					templ_7745c5c3_Var20, templ_7745c5c3_Err = templruntime.SanitizeStyleAttributeValues(fmt.Sprintf("width:8px;height:8px;border-radius:50%%;background:%s;display:inline-block;flex-shrink:0", row.CategoryColor))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/tags.templ`, Line: 207, Col: 146}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 33, "\"></span> ")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var21 string
+					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.JoinStringErrs(row.CategoryName)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/tags.templ`, Line: 208, Col: 28}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var21))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 34, "</td><td style=\"text-align:right;font-variant-numeric:tabular-nums\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var22 string
+					templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.2f", row.Total))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/tags.templ`, Line: 210, Col: 105}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 35, "</td><td style=\"text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					if catTotal > 0 {
+						var templ_7745c5c3_Var23 string
+						templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f%%", row.Total/catTotal*100))
+						if templ_7745c5c3_Err != nil {
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/tags.templ`, Line: 213, Col: 58}
+						}
+						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var23))
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+					} else {
+						templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "—")
+						if templ_7745c5c3_Err != nil {
+							return templ_7745c5c3_Err
+						}
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "</td></tr>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "</tbody></table></div></div>")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
 			return nil
 		})
 		templ_7745c5c3_Err = Layout("Tags").Render(templ.WithChildren(ctx, templ_7745c5c3_Var2), templ_7745c5c3_Buffer)
@@ -359,6 +465,14 @@ func tagsFilterURL(tagID, dateFrom, dateTo string) string {
 }
 
 func tagsSpendTotal(rows []db.GetSpendByTagRow) float64 {
+	var t float64
+	for _, r := range rows {
+		t += r.Total
+	}
+	return t
+}
+
+func catSpendTotal(rows []db.GetSpendingByCategoryRow) float64 {
 	var t float64
 	for _, r := range rows {
 		t += r.Total
