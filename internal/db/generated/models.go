@@ -113,6 +113,15 @@ type Rule struct {
 	CreatedAt  time.Time `json:"created_at"`
 }
 
+type SalaryEstimate struct {
+	ID             string  `json:"id"`
+	MerchantName   string  `json:"merchant_name"`
+	AvgAmount      float64 `json:"avg_amount"`
+	AvgDayOfMonth  float64 `json:"avg_day_of_month"`
+	MonthsSeen     int64   `json:"months_seen"`
+	LastDetectedAt string  `json:"last_detected_at"`
+}
+
 type Security struct {
 	ID              string    `json:"id"`
 	PlaidSecurityID string    `json:"plaid_security_id"`

@@ -6,7 +6,7 @@ import (
 	db "holo/internal/db/generated"
 )
 
-templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool) {
+templ DashboardPage(netWorth float64, spending float64, income float64, salary float64, interest float64, cashback float64, recurring float64, catsJSON string, monthlyJSON string, accounts []db.ListAccountsWithInstitutionRow, recentTxns []db.ListTransactionsRow, monthLabel string, isLastMonth bool, salaryEstimates []db.SalaryEstimate) {
 	{{ net := income - spending }}
 	{{ savingsRate := 0.0 }}
 	if income > 0 {
@@ -36,6 +36,11 @@ templ DashboardPage(netWorth float64, spending float64, income float64, salary f
 				}
 				if income > 0 && salary == 0 && interest == 0 {
 					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.25rem">depository inflows</div>
+				}
+				if len(salaryEstimates) > 0 {
+					<div style="font-size:0.7rem;color:var(--muted);margin-top:0.2rem">
+						Est. { fmt.Sprintf("$%.0f", math.Abs(salaryEstimates[0].AvgAmount)) } ~day { fmt.Sprintf("%d", int(salaryEstimates[0].AvgDayOfMonth)) }
+					</div>
 				}
 			</div>
 			<div class="card">

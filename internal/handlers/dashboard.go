@@ -73,9 +73,11 @@ func (h *DashboardHandler) Page(w http.ResponseWriter, r *http.Request) {
 
 	accounts, _ := h.queries.ListAccountsWithInstitution(ctx)
 
+	salaryEstimates, _ := h.queries.ListSalaryEstimates(ctx)
+
 	catsJSON := buildDashCatsJSON(topCats, monthStart, monthEnd)
 
-	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth).Render(ctx, w)
+	components.DashboardPage(netWorth, spending, income, salary, interest, cashback, recurring, catsJSON, monthlyJSON, accounts, recentTxns, monthLabel, isLastMonth, salaryEstimates).Render(ctx, w)
 }
 
 func buildMonthlyFlowsJSON(flows []db.GetMonthlyFlowsRow) string {

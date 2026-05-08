@@ -3,9 +3,11 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"time"
 
+	"holo/internal/categorize"
 	"holo/internal/components"
 	db "holo/internal/db/generated"
 )
@@ -49,8 +51,25 @@ func (h *SpendingHandler) Page(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	monthly := make([]components.MonthlyTotal, 0, len(rawMonthly))
-	for _, row := range rawMonthly {
+	salaryEstimates, _ := h.queries.ListSalaryEstimates(ctx)
+	salaryDay := 0
+	if len(salaryEstimates) > 0 {
+		salaryDay = int(math.Round(salaryEstimates[0].AvgDayOfMonth))
+	}
+
+	var completeMonths []db.GetMonthlyTotalsRow
+	for _, m := range rawMonthly {
+		t, err := time.Parse("2006-01", fmt.Sprintf("%v", m.Month))
+		if err != nil {
+			continue
+		}
+		if categorize.IsMonthComplete(t, salaryDay, now) {
+			completeMonths = append(completeMonths, m)
+		}
+	}
+
+	monthly := make([]components.MonthlyTotal, 0, len(completeMonths))
+	for _, row := range completeMonths {
 		m := components.MonthlyTotal{
 			Month:    fmt.Sprintf("%v", row.Month),
 			Spending: toFloat64(row.Spending),
