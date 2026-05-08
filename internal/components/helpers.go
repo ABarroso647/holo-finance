@@ -162,6 +162,39 @@ func DedupeCategories(cats []db.Category) []db.Category {
 	return out
 }
 
+// statementCyclePct returns how far through the statement cycle today is (0–100+).
+func statementCyclePct(stmtDate, dueDate string) float64 {
+	stmt, err1 := time.Parse("2006-01-02", stmtDate)
+	due, err2 := time.Parse("2006-01-02", dueDate)
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+	now := time.Now()
+	total := due.Sub(stmt).Hours()
+	if total <= 0 {
+		return 0
+	}
+	elapsed := now.Sub(stmt).Hours()
+	return (elapsed / total) * 100
+}
+
+func cyclePctColor(pct float64) string {
+	if pct >= 90 {
+		return "var(--red)"
+	}
+	if pct >= 70 {
+		return "#f59e0b"
+	}
+	return "var(--green)"
+}
+
+func minF(a, b float64) float64 {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 // SpendingRange is a quick-select time range for the spending page.
 type SpendingRange struct {
 	Label string
