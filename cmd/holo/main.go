@@ -108,6 +108,7 @@ func main() {
 		r.Post("/api/cards/{id}/rates", cardsHandler.AddRate)
 		r.Delete("/api/cards/{id}/rates/{rate_id}", cardsHandler.DeleteRate)
 		r.Post("/api/cards/rematch-rates", cardsHandler.RematchRates)
+		r.Post("/api/cards/{id}/fetch-cpp", cardsHandler.FetchCPP)
 
 		investHandler := handlers.NewInvestHandler(queries)
 		r.Get("/invest", investHandler.Page)
