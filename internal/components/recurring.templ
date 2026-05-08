@@ -61,7 +61,7 @@ templ RecurringPage(monthlyTotal float64, items []RecurringItem, exclusions []st
 
 		<div class="card">
 			if len(items) == 0 {
-				<p style="color:var(--muted)">No recurring transactions found. Plaid marks transactions as recurring after seeing them 2+ months in a row.</p>
+				<p style="color:var(--muted)">No recurring transactions found. Recurring charges are detected from Plaid data and from merchants appearing in the same month across multiple years.</p>
 			} else {
 				<table>
 					<thead>

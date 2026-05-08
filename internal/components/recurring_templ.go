@@ -108,7 +108,7 @@ func RecurringPage(monthlyTotal float64, items []RecurringItem, exclusions []str
 				return templ_7745c5c3_Err
 			}
 			if len(items) == 0 {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p style=\"color:var(--muted)\">No recurring transactions found. Plaid marks transactions as recurring after seeing them 2+ months in a row.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "<p style=\"color:var(--muted)\">No recurring transactions found. Recurring charges are detected from Plaid data and from merchants appearing in the same month across multiple years.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}

@@ -31,17 +31,16 @@ func (h *RecurringHandler) Page(w http.ResponseWriter, r *http.Request) {
 	})
 
 	merchantRows, _ := h.queries.GetRecurringByMerchant(ctx)
+	annualRows, _ := h.queries.GetAnnualRecurringByMerchant(ctx)
 	exclusions, _ := h.queries.ListRecurringExclusions(ctx)
 
-	median := computeMedianAmount(merchantRows)
-	items := make([]components.RecurringItem, len(merchantRows))
-	for i, m := range merchantRows {
-		isAnnual := m.MonthsSeen == 1 && m.AvgAmount > 10*median
-		yearlyEst := m.AvgAmount * 12
-		if isAnnual {
-			yearlyEst = m.AvgAmount
-		}
-		items[i] = components.RecurringItem{
+	// Build a set of merchants already covered by Plaid's recurring detection.
+	plaidMerchants := make(map[string]bool, len(merchantRows))
+	items := make([]components.RecurringItem, 0, len(merchantRows)+len(annualRows))
+
+	for _, m := range merchantRows {
+		plaidMerchants[m.Merchant] = true
+		items = append(items, components.RecurringItem{
 			Merchant:   m.Merchant,
 			MonthsSeen: m.MonthsSeen,
 			AvgAmount:  m.AvgAmount,
@@ -49,9 +48,27 @@ func (h *RecurringHandler) Page(w http.ResponseWriter, r *http.Request) {
 			MinAmount:  m.MinAmount,
 			LastDate:   fmt.Sprintf("%v", m.LastDate),
 			FirstDate:  fmt.Sprintf("%v", m.FirstDate),
-			YearlyEst:  yearlyEst,
-			IsAnnual:   isAnnual,
+			YearlyEst:  m.AvgAmount * 12,
+			IsAnnual:   false,
+		})
+	}
+
+	// Append annual recurring charges not already in the Plaid-flagged list.
+	for _, a := range annualRows {
+		if plaidMerchants[a.Merchant] {
+			continue
 		}
+		items = append(items, components.RecurringItem{
+			Merchant:   a.Merchant,
+			MonthsSeen: a.YearsSeen,
+			AvgAmount:  a.AvgAmount,
+			MaxAmount:  a.MaxAmount,
+			MinAmount:  a.MinAmount,
+			LastDate:   fmt.Sprintf("%v", a.LastDate),
+			FirstDate:  fmt.Sprintf("%v", a.FirstDate),
+			YearlyEst:  a.AvgAmount,
+			IsAnnual:   true,
+		})
 	}
 
 	sixMonthsAgo := now.AddDate(0, -6, 0).Format("2006-01-02")

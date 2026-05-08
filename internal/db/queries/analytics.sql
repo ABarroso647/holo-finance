@@ -199,6 +199,32 @@ WHERE t.is_recurring = 1
 GROUP BY COALESCE(t.merchant_name, t.name)
 ORDER BY avg_amount DESC;
 
+-- name: GetAnnualRecurringByMerchant :many
+-- Detects annual recurring charges independently of Plaid's is_recurring flag.
+-- Matches merchants that appear in 2+ distinct calendar years with at most 2 occurrences
+-- per year on average (distinguishes yearly subscriptions from monthly ones).
+-- Excludes merchants already flagged as Plaid-recurring to avoid duplicates.
+SELECT
+    COALESCE(t.merchant_name, t.name) as merchant,
+    CAST(COUNT(DISTINCT strftime('%Y', t.date)) AS INTEGER) as years_seen,
+    CAST(AVG(t.amount) AS REAL) as avg_amount,
+    CAST(MAX(t.amount) AS REAL) as max_amount,
+    CAST(MIN(t.amount) AS REAL) as min_amount,
+    MAX(t.date) as last_date,
+    MIN(t.date) as first_date
+FROM transactions t
+WHERE t.amount > 0
+  AND t.pending = 0
+  AND t.is_recurring = 0
+  AND (t.category_id IS NULL
+      OR (t.category_id NOT LIKE 'TRANSFER%'
+          AND t.category_id NOT IN ('cat_transfer', 'LOAN_PAYMENTS_CREDIT_CARD_PAYMENT')))
+  AND COALESCE(t.merchant_name, t.name) NOT IN (SELECT merchant FROM recurring_exclusions)
+GROUP BY COALESCE(t.merchant_name, t.name)
+HAVING years_seen >= 2
+  AND CAST(COUNT(*) AS REAL) / CAST(COUNT(DISTINCT strftime('%Y', t.date)) AS REAL) <= 2.0
+ORDER BY avg_amount DESC;
+
 -- name: GetMonthlyRecurringFlows :many
 SELECT
     strftime('%Y-%m', t.date) as month,
