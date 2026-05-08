@@ -338,6 +338,27 @@ templ settingsCardRates(cards []CardRatesData, categories []db.Category) {
 							</form>
 						</div>
 						@SettingsCardRatesContent(c.Account.ID, c.Rates, categories, "")
+							<div style="margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap">
+								<label style="font-size:0.75rem;color:var(--muted)">Points program:</label>
+								<form
+									hx-post={ fmt.Sprintf("/api/cards/%s/fetch-cpp", c.Account.ID) }
+									hx-target={ fmt.Sprintf("#cpp-result-%s", c.Account.ID) }
+									hx-swap="innerHTML"
+									style="display:flex;gap:0.4rem;align-items:center"
+								>
+									<input
+										type="text"
+										name="program"
+										class="filter-input"
+										style="width:200px;font-size:0.75rem"
+										placeholder="e.g. Amex Membership Rewards"
+									/>
+									<button type="submit" class="btn btn-ghost" style="font-size:0.75rem;padding:0.2rem 0.5rem">
+										Fetch CPP
+									</button>
+								</form>
+								<span id={ fmt.Sprintf("cpp-result-%s", c.Account.ID) } style="font-size:0.75rem"></span>
+							</div>
 					</div>
 				}
 			</div>

@@ -921,17 +921,56 @@ func settingsCardRates(cards []CardRatesData, categories []db.Category) templ.Co
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<div style=\"margin-top:0.5rem;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap\"><label style=\"font-size:0.75rem;color:var(--muted)\">Points program:</label><form hx-post=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var45 string
+				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/fetch-cpp", c.Account.ID))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 344, Col: 71}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "\" hx-target=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var46 string
+				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#cpp-result-%s", c.Account.ID))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 345, Col: 64}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "\" hx-swap=\"innerHTML\" style=\"display:flex;gap:0.4rem;align-items:center\"><input type=\"text\" name=\"program\" class=\"filter-input\" style=\"width:200px;font-size:0.75rem\" placeholder=\"e.g. Amex Membership Rewards\"> <button type=\"submit\" class=\"btn btn-ghost\" style=\"font-size:0.75rem;padding:0.2rem 0.5rem\">Fetch CPP</button></form><span id=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var47 string
+				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("cpp-result-%s", c.Account.ID))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 360, Col: 61}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "\" style=\"font-size:0.75rem\"></span></div></div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -955,233 +994,233 @@ func SettingsCardRatesContent(accountID string, rates []db.ListCardRewardRatesFo
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var45 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var45 == nil {
-			templ_7745c5c3_Var45 = templ.NopComponent
+		templ_7745c5c3_Var48 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var48 == nil {
+			templ_7745c5c3_Var48 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<div id=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<div id=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var46 string
-		templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("settings-rates-%s", accountID))
+		var templ_7745c5c3_Var49 string
+		templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("settings-rates-%s", accountID))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 349, Col: 54}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 370, Col: 54}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if errMsg != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "<p style=\"font-size:0.8rem;color:var(--red);margin-bottom:0.5rem\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<p style=\"font-size:0.8rem;color:var(--red);margin-bottom:0.5rem\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var47 string
-			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
+			var templ_7745c5c3_Var50 string
+			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(errMsg)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 351, Col: 77}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 372, Col: 77}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
 		if len(rates) > 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 81, "<table style=\"font-size:0.8rem;width:100%;margin-bottom:0.75rem\"><thead><tr><th style=\"text-align:left\">Category</th><th style=\"text-align:right\">Rate</th><th style=\"text-align:right\">Cap</th><th style=\"width:2rem\"></th></tr></thead> <tbody>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<table style=\"font-size:0.8rem;width:100%;margin-bottom:0.75rem\"><thead><tr><th style=\"text-align:left\">Category</th><th style=\"text-align:right\">Rate</th><th style=\"text-align:right\">Cap</th><th style=\"width:2rem\"></th></tr></thead> <tbody>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			for _, rate := range rates {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "<tr><td style=\"color:var(--muted)\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<tr><td style=\"color:var(--muted)\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				if rate.CategoryName != "" {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 83, "<span style=\"color:var(--text)\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, "<span style=\"color:var(--text)\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var48 string
-					templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(rate.CategoryName)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 368, Col: 60}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "</span>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				} else if rate.RawCategory != nil {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 85, "<span style=\"color:var(--yellow)\">")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					var templ_7745c5c3_Var49 string
-					templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(*rate.RawCategory)
-					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 370, Col: 62}
-					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, " (unmatched)</span>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "<span style=\"font-style:italic\">catch-all</span>")
-					if templ_7745c5c3_Err != nil {
-						return templ_7745c5c3_Err
-					}
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "</td><td style=\"text-align:right;font-weight:600\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var50 string
-				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f%%", rate.RewardRate))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 375, Col: 92}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, "</td><td style=\"text-align:right;color:var(--muted)\">")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				if rate.CapAmount != nil {
 					var templ_7745c5c3_Var51 string
-					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.0f%s", *rate.CapAmount, capPeriodLabel(rate.CapPeriod)))
+					templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(rate.CategoryName)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 378, Col: 82}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 389, Col: 60}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else if rate.RawCategory != nil {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "<span style=\"color:var(--yellow)\">")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					var templ_7745c5c3_Var52 string
+					templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(*rate.RawCategory)
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 391, Col: 62}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 89, " (unmatched)</span>")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
 				} else {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "—")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 90, "<span style=\"font-style:italic\">catch-all</span>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</td><td style=\"text-align:right\"><button type=\"button\" hx-delete=\"")
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				var templ_7745c5c3_Var52 string
-				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/rates/%s?view=settings", accountID, rate.ID))
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 386, Col: 92}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "\" hx-target=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 91, "</td><td style=\"text-align:right;font-weight:600\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var53 string
-				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#settings-rates-%s", accountID))
+				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("%.1f%%", rate.RewardRate))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 387, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 396, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "\" hx-swap=\"outerHTML\" style=\"background:none;border:none;color:var(--muted);cursor:pointer;padding:0;font-size:0.9rem;line-height:1\" title=\"Remove\">×</button></td></tr>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 92, "</td><td style=\"text-align:right;color:var(--muted)\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "</tbody></table>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "<form style=\"display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap\" hx-post=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var54 string
-		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/rates?view=settings", accountID))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 400, Col: 72}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" hx-target=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var55 string
-		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#settings-rates-%s", accountID))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 401, Col: 59}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "\" hx-swap=\"outerHTML\" hx-on--htmx-after-request=\"this.reset()\"><select name=\"category_id\" class=\"filter-select\" style=\"font-size:0.8rem\"><option value=\"\">— catch-all —</option> ")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		for _, cat := range DedupeCategories(categories) {
-			if cat.ParentID == nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<option value=\"")
+				if rate.CapAmount != nil {
+					var templ_7745c5c3_Var54 string
+					templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("$%.0f%s", *rate.CapAmount, capPeriodLabel(rate.CapPeriod)))
+					if templ_7745c5c3_Err != nil {
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 399, Col: 82}
+					}
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				} else {
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 93, "—")
+					if templ_7745c5c3_Err != nil {
+						return templ_7745c5c3_Err
+					}
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 94, "</td><td style=\"text-align:right\"><button type=\"button\" hx-delete=\"")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var55 string
+				templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/rates/%s?view=settings", accountID, rate.ID))
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 407, Col: 92}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 95, "\" hx-target=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var56 string
-				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(cat.ID)
+				templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#settings-rates-%s", accountID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 409, Col: 28}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 408, Col: 65}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 96, "\" hx-swap=\"outerHTML\" style=\"background:none;border:none;color:var(--muted);cursor:pointer;padding:0;font-size:0.9rem;line-height:1\" title=\"Remove\">×</button></td></tr>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var57 string
-				templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(cat.Name)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 409, Col: 41}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 97, "</tbody></table>")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 98, "<form style=\"display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap\" hx-post=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var57 string
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("/api/cards/%s/rates?view=settings", accountID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 421, Col: 72}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 99, "\" hx-target=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var58 string
+		templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.JoinStringErrs(fmt.Sprintf("#settings-rates-%s", accountID))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 422, Col: 59}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var58))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "\" hx-swap=\"outerHTML\" hx-on--htmx-after-request=\"this.reset()\"><select name=\"category_id\" class=\"filter-select\" style=\"font-size:0.8rem\"><option value=\"\">— catch-all —</option> ")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		for _, cat := range DedupeCategories(categories) {
+			if cat.ParentID == nil {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "<option value=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 100, "</option>")
+				var templ_7745c5c3_Var59 string
+				templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(cat.ID)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 430, Col: 28}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var60 string
+				templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinStringErrs(cat.Name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 430, Col: 41}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "</option>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 101, "</select> <input type=\"number\" name=\"rate\" class=\"filter-input\" style=\"width:80px;font-size:0.8rem\" placeholder=\"Rate %\" step=\"0.1\" min=\"0\" max=\"100\" required> <input type=\"number\" name=\"cap_amount\" class=\"filter-input\" style=\"width:90px;font-size:0.8rem\" placeholder=\"Cap $ (opt)\" step=\"100\" min=\"0\"> <select name=\"cap_period\" class=\"filter-select\" style=\"font-size:0.8rem\"><option value=\"\">No cap</option> <option value=\"annual\">Annual</option> <option value=\"monthly\">Monthly</option></select> <button type=\"submit\" class=\"btn btn-ghost\" style=\"font-size:0.8rem;padding:0.25rem 0.6rem\">+ Add rate</button></form></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "</select> <input type=\"number\" name=\"rate\" class=\"filter-input\" style=\"width:80px;font-size:0.8rem\" placeholder=\"Rate %\" step=\"0.1\" min=\"0\" max=\"100\" required> <input type=\"number\" name=\"cap_amount\" class=\"filter-input\" style=\"width:90px;font-size:0.8rem\" placeholder=\"Cap $ (opt)\" step=\"100\" min=\"0\"> <select name=\"cap_period\" class=\"filter-select\" style=\"font-size:0.8rem\"><option value=\"\">No cap</option> <option value=\"annual\">Annual</option> <option value=\"monthly\">Monthly</option></select> <button type=\"submit\" class=\"btn btn-ghost\" style=\"font-size:0.8rem;padding:0.25rem 0.6rem\">+ Add rate</button></form></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1205,25 +1244,25 @@ func settingsAI(model string) templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var58 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var58 == nil {
-			templ_7745c5c3_Var58 = templ.NopComponent
+		templ_7745c5c3_Var61 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var61 == nil {
+			templ_7745c5c3_Var61 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 102, "<div class=\"card\"><h2 style=\"margin-bottom:0.25rem\">AI & Categorization</h2><p style=\"color:var(--muted);font-size:0.8rem;margin-bottom:1rem\">OpenRouter model used for LLM categorization. Only merchant names are sent — no amounts or account info.</p><form style=\"display:flex;gap:0.5rem;align-items:center\" hx-post=\"/api/settings/openrouter-model\" hx-target=\"#model-save-result\" hx-swap=\"innerHTML\"><label style=\"font-size:0.85rem;color:var(--muted);white-space:nowrap\">Model:</label> <input type=\"text\" name=\"model\" class=\"filter-input\" style=\"width:320px;font-family:monospace\" value=\"")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 105, "<div class=\"card\"><h2 style=\"margin-bottom:0.25rem\">AI & Categorization</h2><p style=\"color:var(--muted);font-size:0.8rem;margin-bottom:1rem\">OpenRouter model used for LLM categorization. Only merchant names are sent — no amounts or account info.</p><form style=\"display:flex;gap:0.5rem;align-items:center\" hx-post=\"/api/settings/openrouter-model\" hx-target=\"#model-save-result\" hx-swap=\"innerHTML\"><label style=\"font-size:0.85rem;color:var(--muted);white-space:nowrap\">Model:</label> <input type=\"text\" name=\"model\" class=\"filter-input\" style=\"width:320px;font-family:monospace\" value=\"")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		var templ_7745c5c3_Var59 string
-		templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(model)
+		var templ_7745c5c3_Var62 string
+		templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(model)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 459, Col: 17}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/components/settings.templ`, Line: 480, Col: 17}
 		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 103, "\" placeholder=\"e.g. deepseek/deepseek-r1-0528-qwen3-8b:free\"> <button type=\"submit\" class=\"btn btn-ghost\" style=\"font-size:0.8rem;padding:0.25rem 0.6rem\">Save</button> <span id=\"model-save-result\" style=\"font-size:0.75rem\"></span></form><p style=\"color:var(--muted);font-size:0.75rem;margin-top:0.75rem\">Saved value takes precedence over the <code style=\"background:var(--border);padding:1px 4px;border-radius:3px\">OPENROUTER_MODEL</code> env var. Find models at <span style=\"color:var(--accent)\">openrouter.ai/models</span>.</p></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 106, "\" placeholder=\"e.g. deepseek/deepseek-r1-0528-qwen3-8b:free\"> <button type=\"submit\" class=\"btn btn-ghost\" style=\"font-size:0.8rem;padding:0.25rem 0.6rem\">Save</button> <span id=\"model-save-result\" style=\"font-size:0.75rem\"></span></form><p style=\"color:var(--muted);font-size:0.75rem;margin-top:0.75rem\">Saved value takes precedence over the <code style=\"background:var(--border);padding:1px 4px;border-radius:3px\">OPENROUTER_MODEL</code> env var. Find models at <span style=\"color:var(--accent)\">openrouter.ai/models</span>.</p></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -1247,12 +1286,12 @@ func settingsExport() templ.Component {
 			}()
 		}
 		ctx = templ.InitializeContext(ctx)
-		templ_7745c5c3_Var60 := templ.GetChildren(ctx)
-		if templ_7745c5c3_Var60 == nil {
-			templ_7745c5c3_Var60 = templ.NopComponent
+		templ_7745c5c3_Var63 := templ.GetChildren(ctx)
+		if templ_7745c5c3_Var63 == nil {
+			templ_7745c5c3_Var63 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 104, "<div class=\"card\"><h2 style=\"margin-bottom:0.25rem\">Export Data</h2><p style=\"color:var(--muted);font-size:0.8rem;margin-bottom:1rem\">Download your transaction history. Optional date range filter.</p><div style=\"display:flex;gap:1.5rem;flex-wrap:wrap\"><div style=\"display:flex;flex-direction:column;gap:0.5rem\"><div style=\"display:flex;gap:0.4rem;align-items:center;font-size:0.85rem\"><label style=\"color:var(--muted);width:3rem\">From</label> <input type=\"date\" id=\"export-from\" class=\"filter-input\" style=\"width:160px\"></div><div style=\"display:flex;gap:0.4rem;align-items:center;font-size:0.85rem\"><label style=\"color:var(--muted);width:3rem\">To</label> <input type=\"date\" id=\"export-to\" class=\"filter-input\" style=\"width:160px\"></div></div><div style=\"display:flex;flex-direction:column;gap:0.5rem;justify-content:center\"><a id=\"export-csv-link\" href=\"/api/export?format=csv\" class=\"btn btn-ghost\" style=\"font-size:0.85rem;text-align:center\" onclick=\"updateExportLinks(event, this)\">Download CSV</a> <a id=\"export-json-link\" href=\"/api/export?format=json\" class=\"btn btn-ghost\" style=\"font-size:0.85rem;text-align:center\" onclick=\"updateExportLinks(event, this)\">Download JSON</a></div></div><script>\n\t\t\tfunction updateExportLinks(e, clicked) {\n\t\t\t\tconst from = document.getElementById('export-from').value;\n\t\t\t\tconst to = document.getElementById('export-to').value;\n\t\t\t\t['csv','json'].forEach(fmt => {\n\t\t\t\t\tconst el = document.getElementById('export-' + fmt + '-link');\n\t\t\t\t\tlet url = '/api/export?format=' + fmt;\n\t\t\t\t\tif (from) url += '&from=' + from;\n\t\t\t\t\tif (to) url += '&to=' + to;\n\t\t\t\t\tel.href = url;\n\t\t\t\t});\n\t\t\t}\n\t\t</script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 107, "<div class=\"card\"><h2 style=\"margin-bottom:0.25rem\">Export Data</h2><p style=\"color:var(--muted);font-size:0.8rem;margin-bottom:1rem\">Download your transaction history. Optional date range filter.</p><div style=\"display:flex;gap:1.5rem;flex-wrap:wrap\"><div style=\"display:flex;flex-direction:column;gap:0.5rem\"><div style=\"display:flex;gap:0.4rem;align-items:center;font-size:0.85rem\"><label style=\"color:var(--muted);width:3rem\">From</label> <input type=\"date\" id=\"export-from\" class=\"filter-input\" style=\"width:160px\"></div><div style=\"display:flex;gap:0.4rem;align-items:center;font-size:0.85rem\"><label style=\"color:var(--muted);width:3rem\">To</label> <input type=\"date\" id=\"export-to\" class=\"filter-input\" style=\"width:160px\"></div></div><div style=\"display:flex;flex-direction:column;gap:0.5rem;justify-content:center\"><a id=\"export-csv-link\" href=\"/api/export?format=csv\" class=\"btn btn-ghost\" style=\"font-size:0.85rem;text-align:center\" onclick=\"updateExportLinks(event, this)\">Download CSV</a> <a id=\"export-json-link\" href=\"/api/export?format=json\" class=\"btn btn-ghost\" style=\"font-size:0.85rem;text-align:center\" onclick=\"updateExportLinks(event, this)\">Download JSON</a></div></div><script>\n\t\t\tfunction updateExportLinks(e, clicked) {\n\t\t\t\tconst from = document.getElementById('export-from').value;\n\t\t\t\tconst to = document.getElementById('export-to').value;\n\t\t\t\t['csv','json'].forEach(fmt => {\n\t\t\t\t\tconst el = document.getElementById('export-' + fmt + '-link');\n\t\t\t\t\tlet url = '/api/export?format=' + fmt;\n\t\t\t\t\tif (from) url += '&from=' + from;\n\t\t\t\t\tif (to) url += '&to=' + to;\n\t\t\t\t\tel.href = url;\n\t\t\t\t});\n\t\t\t}\n\t\t</script></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

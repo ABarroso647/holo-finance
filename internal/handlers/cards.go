@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -203,6 +204,53 @@ func (h *CardsHandler) RematchRates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">✓ Matched %d rates to categories. Refresh page to see updates.</span>`, n)
+}
+
+func (h *CardsHandler) FetchCPP(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	program := r.FormValue("program")
+	if program == "" {
+		http.Error(w, "program required", http.StatusBadRequest)
+		return
+	}
+
+	apiKey := os.Getenv("OPENROUTER_API_KEY")
+	model, _ := h.queries.GetSetting(r.Context(), "openrouter_model")
+	if model == "" {
+		model = os.Getenv("OPENROUTER_MODEL")
+	}
+	if model == "" {
+		model = "deepseek/deepseek-v4-flash"
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	result, err := rewards.FetchCPP(ctx, apiKey, model, program)
+
+	// Store in cpp_cache
+	if err == nil {
+		_ = h.queries.UpsertCPPCache(r.Context(), db.UpsertCPPCacheParams{
+			Program:   program,
+			Cpp:       result.CPP,
+			Source:    result.Source,
+			FetchedAt: time.Now(),
+		})
+		// Update card_config
+		_ = h.queries.UpdateCardConfigPoints(r.Context(), db.UpdateCardConfigPointsParams{
+			AccountID:     id,
+			PointsProgram: &program,
+			PointsCpp:     result.CPP,
+			CppOverridden: 0, // not user-overridden, fetched
+		})
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	if err != nil {
+		fmt.Fprintf(w, `<span style="color:var(--red);font-size:0.8rem">Error: %s</span>`, err.Error())
+		return
+	}
+	fmt.Fprintf(w, `<span style="color:var(--green);font-size:0.8rem">%.2f¢/pt <span style="color:var(--muted)">(%s)</span></span>`, result.CPP, result.Source)
 }
 
 func formatShortDate(date string) string {
